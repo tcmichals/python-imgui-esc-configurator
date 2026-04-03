@@ -46,6 +46,21 @@ Mission framing:
 - this is an intentionally ambitious systems project aimed at improving Linux-integrated real-time controller behavior,
 - and it should be evaluated by technical outcomes (determinism, latency/jitter behavior, safety/watchdog behavior, maintainability), not by whether it follows existing mainstream FC architecture conventions.
 
+## Repository split and protocol direction
+
+This standalone repository is focused on the **ESC configurator + host tooling path**.
+
+The FPGA/offload implementation is now tracked in:
+
+- **`rt-fc-offloader`**: `git@github.com:tcmichals/rt-fc-offloader.git`
+
+Protocol strategy for this phase:
+
+- **MSP path (current):** used to validate GUI behavior, workflow parity, and ESC feature coverage quickly.
+- **Next protocol path (target):** move runtime traffic toward the newer FPGA-parser-friendly framed protocol for better determinism and throughput, while keeping MSP compatibility where it is still useful.
+
+In short: MSP is our validation bridge for feature-complete GUI work; the long-term transport path is the new protocol.
+
 ## Pico vs SERV Comparison
 
 While both targets share the same **Unified App** codebase, they serve different operational roles:
