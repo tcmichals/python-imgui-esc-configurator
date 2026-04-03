@@ -82,6 +82,7 @@ For most implementation prompts, provide documents in this order:
 ## Notes
 
 - If protocol behavior in code and docs diverge, update code or docs immediately.
+- FCSP protocol specification is canonical in `rt-fc-offloader/docs/FCSP_PROTOCOL.md`; keep a single source of truth and do not create duplicate spec copies in this repository.
 - Browser-based esc-configurator workflows depend on WebSerial, which expects OS-visible serial devices; plain TCP endpoints are not direct WebSerial targets.
 - A webapp TCP bridge can be built with a local helper/service layer, but that is a separate integration project; for near-term delivery, the Python full-replacement path is the primary route.
 

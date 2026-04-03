@@ -57,9 +57,13 @@ The FPGA/offload implementation is now tracked in:
 Protocol strategy for this phase:
 
 - **MSP path (current):** used to validate GUI behavior, workflow parity, and ESC feature coverage quickly.
-- **Next protocol path (target):** move runtime traffic toward the newer FPGA-parser-friendly framed protocol for better determinism and throughput, while keeping MSP compatibility where it is still useful.
+- **FCSP path (target):** move runtime traffic to **FCSP/1** (Flight Controller Switch Protocol) for better determinism and throughput, while keeping MSP compatibility where it is still useful.
 
-In short: MSP is our validation bridge for feature-complete GUI work; the long-term transport path is the new protocol.
+Canonical protocol spec source:
+
+- `rt-fc-offloader/docs/FCSP_PROTOCOL.md` (single source of truth; no duplicate spec copies)
+
+In short: MSP is our validation bridge for feature-complete GUI work; the long-term transport path is FCSP.
 
 ## Pico vs SERV Comparison
 
