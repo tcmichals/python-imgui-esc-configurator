@@ -25,7 +25,7 @@ For each meaningful commit or milestone, append a new entry with:
 
 ### Commit
 
-- `f398bea`
+- `a9a2ae8` (primary milestone commit for this entry)
 
 ### Scope
 
