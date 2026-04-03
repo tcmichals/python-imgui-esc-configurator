@@ -8,11 +8,34 @@ from pathlib import Path
 
 from MSP import FOURWAY_CMDS
 from MSP import SerialPortDescriptor
+from comm_proto.fcsp import (
+    FCSP_CAP_TLV_DSHOT_MOTOR_COUNT,
+    FCSP_CAP_TLV_FEATURE_FLAGS,
+    FCSP_CAP_TLV_PROFILE_STRING,
+    FCSP_CAP_TLV_SUPPORTED_OPS,
+    FCSP_CAP_TLV_SUPPORTED_SPACES,
+    FCSP_HELLO_TLV_ENDPOINT_NAME,
+    FCSP_HELLO_TLV_ENDPOINT_ROLE,
+    FCSP_HELLO_TLV_PROTOCOL_STRING,
+    FcspChannel,
+    FcspControlOp,
+    FcspEndpointRole,
+    FcspResult,
+    FcspTlv,
+    build_get_caps_response_payload,
+    build_hello_response_payload,
+    build_control_payload,
+    decode_frame,
+    encode_frame as encode_fcsp_frame,
+    encode_tlvs,
+    parse_control_payload,
+)
 from comm_proto.tang9k_stream import Tang9kChannel, Tang9kLogEvent, Tang9kLogLevel, Tang9kLogSource, encode_fc_log_event, encode_frame
 from imgui_bundle_esc_config import APP_VERSION
 from imgui_bundle_esc_config.app_state import create_app_state
 from imgui_bundle_esc_config.firmware_catalog import FirmwareCatalogSnapshot, FirmwareImage, FirmwareRelease
 from imgui_bundle_esc_config.worker import (
+    CommandGetFcspLinkStatus,
     CommandConnect,
     CommandDownloadFirmware,
     CommandDisconnect,
@@ -30,6 +53,8 @@ from imgui_bundle_esc_config.worker import (
     EventDisconnected,
     EventError,
     EventEscScanResult,
+    EventFcspCapabilities,
+    EventFcspLinkStatus,
     EventFirmwareCatalogLoaded,
     EventFirmwareDownloaded,
     EventFirmwareFlashed,
@@ -59,6 +84,40 @@ class FakeTransport:
 
     def close(self) -> None:
         self.closed = True
+
+
+class FakeFcspTransport(FakeTransport):
+    def __init__(self, port: str, baudrate: int, timeout: float, *, read_script: bytes) -> None:
+        super().__init__(port, baudrate, timeout)
+        self._read_buf = bytearray(read_script)
+        self.writes: list[bytes] = []
+
+    def write(self, data: bytes) -> None:
+        self.writes.append(bytes(data))
+
+    def read(self, size: int) -> bytes:
+        if size <= 0 or not self._read_buf:
+            return b""
+        count = min(size, len(self._read_buf))
+        out = bytes(self._read_buf[:count])
+        del self._read_buf[:count]
+        return out
+
+
+def make_fcsp_control_response(op: FcspControlOp, *, result: int = int(FcspResult.OK), data: bytes = b"", seq: int = 1) -> bytes:
+    return encode_fcsp_frame(
+        FcspChannel.CONTROL,
+        seq=seq,
+        payload=build_control_payload(op, bytes([result & 0xFF]) + bytes(data)),
+    )
+
+
+def make_fcsp_control_frame(op: FcspControlOp, data: bytes, *, seq: int = 1) -> bytes:
+    return encode_fcsp_frame(
+        FcspChannel.CONTROL,
+        seq=seq,
+        payload=build_control_payload(op, bytes(data)),
+    )
 
 
 class _FakeFrame:
@@ -226,6 +285,15 @@ def drain_events(controller: WorkerController, event_type: type, timeout: float 
         time.sleep(0.01)
     return collected
 
+def wait_for_passthrough_state(controller: WorkerController, *, active: bool, timeout: float = 1.0) -> EventPassthroughState:
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        for event in controller.poll_events():
+            if isinstance(event, EventPassthroughState) and event.active is active:
+                return event
+        time.sleep(0.01)
+    raise AssertionError(f"Timed out waiting for EventPassthroughState(active={active})")
+
 
 def test_worker_refreshes_ports() -> None:
     ports = [
@@ -311,6 +379,779 @@ def test_worker_connect_accepts_tang20k_alias_mode() -> None:
         controller.enqueue(CommandConnect(port="/dev/ttyUSB0", protocol_mode="optimized_tang20k"))
         connected = wait_for_event(controller, EventConnected)
         assert connected.protocol_mode == "optimized_tang9k"
+    finally:
+        controller.stop()
+
+
+def test_worker_connect_optimized_mode_probes_fcsp_hello_and_caps() -> None:
+    hello_response = encode_fcsp_frame(
+        FcspChannel.CONTROL,
+        seq=100,
+        payload=build_control_payload(
+            FcspControlOp.HELLO,
+            build_hello_response_payload(
+                0,
+                [
+                    FcspTlv(tlv_type=FCSP_HELLO_TLV_ENDPOINT_ROLE, value=bytes([FcspEndpointRole.OFFLOADER])),
+                    FcspTlv(tlv_type=FCSP_HELLO_TLV_ENDPOINT_NAME, value=b"offloader"),
+                    FcspTlv(tlv_type=FCSP_HELLO_TLV_PROTOCOL_STRING, value=b"FCSP/1"),
+                ],
+            ),
+        ),
+    )
+    caps_tlvs = encode_tlvs([
+        FcspTlv(tlv_type=FCSP_CAP_TLV_DSHOT_MOTOR_COUNT, value=b"\x00\x04"),
+        FcspTlv(tlv_type=FCSP_CAP_TLV_PROFILE_STRING, value=b"SERV8-50-SPIPROD"),
+        FcspTlv(tlv_type=FCSP_CAP_TLV_FEATURE_FLAGS, value=b"\x00\x00\x00\x01"),
+    ])
+    caps_response = encode_fcsp_frame(
+        FcspChannel.CONTROL,
+        seq=101,
+        payload=build_control_payload(
+            FcspControlOp.GET_CAPS,
+            build_get_caps_response_payload(
+                0,
+                [
+                    FcspTlv(tlv_type=FCSP_CAP_TLV_DSHOT_MOTOR_COUNT, value=b"\x00\x04"),
+                    FcspTlv(tlv_type=FCSP_CAP_TLV_PROFILE_STRING, value=b"SERV8-50-SPIPROD"),
+                    FcspTlv(tlv_type=FCSP_CAP_TLV_FEATURE_FLAGS, value=b"\x00\x00\x00\x01"),
+                ],
+            ),
+        ),
+    )
+    scripted_read = hello_response + caps_response
+
+    created: list[FakeFcspTransport] = []
+
+    def factory(port: str, baudrate: int, timeout: float) -> FakeFcspTransport:
+        transport = FakeFcspTransport(port, baudrate, timeout, read_script=scripted_read)
+        created.append(transport)
+        return transport
+
+    controller = WorkerController(
+        port_enumerator=lambda: [],
+        transport_factory=factory,
+    )
+
+    controller.start()
+    try:
+        controller.enqueue(CommandConnect(port="/dev/ttyUSB0", protocol_mode="optimized_tang9k"))
+        connected = wait_for_event(controller, EventConnected)
+        assert connected.protocol_mode == "optimized_tang9k"
+
+        collected_events: list[object] = []
+        deadline = time.time() + 1.2
+        caps_event = None
+        while time.time() < deadline and caps_event is None:
+            batch = controller.poll_events(max_events=100)
+            if batch:
+                collected_events.extend(batch)
+                for event in batch:
+                    if isinstance(event, EventFcspCapabilities):
+                        caps_event = event
+                        break
+            time.sleep(0.01)
+
+        assert caps_event is not None
+        assert caps_event.peer_name == "offloader"
+        assert caps_event.esc_count == 4
+        assert caps_event.feature_flags == 1
+        assert len(caps_event.tlvs) == 3
+
+        logs = [event for event in collected_events if isinstance(event, EventLog)]
+        logs.extend(drain_events(controller, EventLog, timeout=0.4))
+        assert any("FCSP HELLO ok" in event.message for event in logs)
+        assert any("FCSP GET_CAPS ok" in event.message for event in logs)
+
+        assert created
+        writes = created[0].writes
+        assert len(writes) >= 2
+
+        req1 = decode_frame(writes[0])
+        req2 = decode_frame(writes[1])
+        op1, _ = parse_control_payload(req1.payload)
+        op2, _ = parse_control_payload(req2.payload)
+        assert op1 == FcspControlOp.HELLO
+        assert op2 == FcspControlOp.GET_CAPS
+    finally:
+        controller.stop()
+
+
+def test_worker_connect_optimized_mode_fcsp_probe_failure_keeps_connected() -> None:
+    # Invalid response: channel FC_LOG instead of CONTROL -> FCSP probe should warn and continue.
+    bad_response = encode_fcsp_frame(
+        FcspChannel.FC_LOG,
+        seq=7,
+        payload=b"log",
+    )
+
+    controller = WorkerController(
+        port_enumerator=lambda: [],
+        transport_factory=lambda p, b, t: FakeFcspTransport(p, b, t, read_script=bad_response),
+    )
+
+    controller.start()
+    try:
+        controller.enqueue(CommandConnect(port="/dev/ttyUSB0", protocol_mode="optimized_tang9k"))
+        connected = wait_for_event(controller, EventConnected)
+        assert connected.protocol_mode == "optimized_tang9k"
+
+        logs = drain_events(controller, EventLog, timeout=1.0)
+        assert any("FCSP handshake probe failed" in event.message for event in logs)
+    finally:
+        controller.stop()
+
+
+def test_worker_optimized_fcsp_enter_passthrough_and_scan_use_native_control() -> None:
+    read_script = b"".join(
+        [
+            make_fcsp_control_frame(
+                FcspControlOp.HELLO,
+                build_hello_response_payload(
+                    FcspResult.OK,
+                    [
+                        FcspTlv(tlv_type=FCSP_HELLO_TLV_ENDPOINT_NAME, value=b"Tang9k FC"),
+                        FcspTlv(tlv_type=FCSP_HELLO_TLV_PROTOCOL_STRING, value=b"FCSP/1"),
+                    ],
+                ),
+                seq=1,
+            ),
+            make_fcsp_control_frame(
+                FcspControlOp.GET_CAPS,
+                build_get_caps_response_payload(
+                    FcspResult.OK,
+                    [FcspTlv(tlv_type=FCSP_CAP_TLV_DSHOT_MOTOR_COUNT, value=b"\x04")],
+                ),
+                seq=2,
+            ),
+            make_fcsp_control_response(FcspControlOp.PT_ENTER, data=b"\x04", seq=3),
+            make_fcsp_control_response(FcspControlOp.ESC_SCAN, data=b"\x04", seq=4),
+        ]
+    )
+
+    created: list[FakeFcspTransport] = []
+    msp = FakeMspClient()
+
+    def make_transport(port: str, baudrate: int, timeout: float) -> FakeFcspTransport:
+        transport = FakeFcspTransport(port, baudrate, timeout, read_script=read_script)
+        created.append(transport)
+        return transport
+
+    controller = WorkerController(
+        port_enumerator=lambda: [],
+        transport_factory=make_transport,
+        msp_client_factory=lambda _transport: msp,
+    )
+
+    controller.start()
+    try:
+        controller.enqueue(CommandConnect(port="/dev/ttyUSB0", protocol_mode="optimized_tang9k"))
+        _ = wait_for_event(controller, EventConnected)
+
+        controller.enqueue(CommandEnterPassthrough(motor_index=2))
+        pt = wait_for_passthrough_state(controller, active=True)
+        assert pt.active is True
+        assert pt.motor_index == 2
+        assert pt.esc_count == 4
+
+        controller.enqueue(CommandScanEscs(motor_index=2))
+        scan = wait_for_event(controller, EventEscScanResult)
+        assert scan.motor_index == 2
+        assert scan.esc_count == 4
+
+        assert msp.calls == []
+        assert created
+        writes = created[0].writes
+        assert len(writes) >= 4
+
+        op1, body1 = parse_control_payload(decode_frame(writes[0]).payload)
+        op2, body2 = parse_control_payload(decode_frame(writes[1]).payload)
+        op3, body3 = parse_control_payload(decode_frame(writes[2]).payload)
+        op4, body4 = parse_control_payload(decode_frame(writes[3]).payload)
+        assert (op1, op2, op3, op4) == (
+            FcspControlOp.HELLO,
+            FcspControlOp.GET_CAPS,
+            FcspControlOp.PT_ENTER,
+            FcspControlOp.ESC_SCAN,
+        )
+        assert body1
+        assert body2 == b""
+        assert body3 == bytes([0x02])
+        assert body4 == bytes([0x02])
+    finally:
+        controller.stop()
+
+
+def test_worker_optimized_fcsp_exit_passthrough_uses_native_control() -> None:
+    read_script = b"".join(
+        [
+            make_fcsp_control_frame(
+                FcspControlOp.HELLO,
+                build_hello_response_payload(
+                    FcspResult.OK,
+                    [FcspTlv(tlv_type=FCSP_HELLO_TLV_ENDPOINT_NAME, value=b"Tang9k FC")],
+                ),
+                seq=1,
+            ),
+            make_fcsp_control_frame(
+                FcspControlOp.GET_CAPS,
+                build_get_caps_response_payload(
+                    FcspResult.OK,
+                    [FcspTlv(tlv_type=FCSP_CAP_TLV_DSHOT_MOTOR_COUNT, value=b"\x04")],
+                ),
+                seq=2,
+            ),
+            make_fcsp_control_response(FcspControlOp.PT_ENTER, data=b"\x02", seq=3),
+            make_fcsp_control_response(FcspControlOp.PT_EXIT, data=b"", seq=4),
+        ]
+    )
+
+    created: list[FakeFcspTransport] = []
+    msp = FakeMspClient()
+
+    def make_transport(port: str, baudrate: int, timeout: float) -> FakeFcspTransport:
+        transport = FakeFcspTransport(port, baudrate, timeout, read_script=read_script)
+        created.append(transport)
+        return transport
+
+    controller = WorkerController(
+        port_enumerator=lambda: [],
+        transport_factory=make_transport,
+        msp_client_factory=lambda _transport: msp,
+    )
+
+    controller.start()
+    try:
+        controller.enqueue(CommandConnect(port="/dev/ttyUSB0", protocol_mode="optimized_tang9k"))
+        _ = wait_for_event(controller, EventConnected)
+
+        controller.enqueue(CommandEnterPassthrough(motor_index=0))
+        entered = wait_for_passthrough_state(controller, active=True)
+        assert entered.active is True
+
+        controller.enqueue(CommandExitPassthrough())
+        exited = wait_for_passthrough_state(controller, active=False)
+        assert exited.active is False
+        assert exited.esc_count == 0
+
+        assert msp.calls == []
+        assert created
+        writes = created[0].writes
+        assert len(writes) >= 4
+        op4, body4 = parse_control_payload(decode_frame(writes[3]).payload)
+        assert op4 == FcspControlOp.PT_EXIT
+        assert body4 == b""
+    finally:
+        controller.stop()
+
+
+def test_worker_optimized_fcsp_set_motor_speed_uses_native_control() -> None:
+    read_script = b"".join(
+        [
+            make_fcsp_control_frame(
+                FcspControlOp.HELLO,
+                build_hello_response_payload(
+                    FcspResult.OK,
+                    [FcspTlv(tlv_type=FCSP_HELLO_TLV_ENDPOINT_NAME, value=b"Tang9k FC")],
+                ),
+                seq=1,
+            ),
+            make_fcsp_control_frame(
+                FcspControlOp.GET_CAPS,
+                build_get_caps_response_payload(
+                    FcspResult.OK,
+                    [FcspTlv(tlv_type=FCSP_CAP_TLV_DSHOT_MOTOR_COUNT, value=b"\x04")],
+                ),
+                seq=2,
+            ),
+            make_fcsp_control_response(FcspControlOp.SET_MOTOR_SPEED, data=b"", seq=3),
+        ]
+    )
+
+    created: list[FakeFcspTransport] = []
+    msp = FakeMspClient()
+
+    def make_transport(port: str, baudrate: int, timeout: float) -> FakeFcspTransport:
+        transport = FakeFcspTransport(port, baudrate, timeout, read_script=read_script)
+        created.append(transport)
+        return transport
+
+    controller = WorkerController(
+        port_enumerator=lambda: [],
+        transport_factory=make_transport,
+        msp_client_factory=lambda _transport: msp,
+    )
+
+    controller.start()
+    try:
+        controller.enqueue(CommandConnect(port="/dev/ttyUSB0", protocol_mode="optimized_tang9k"))
+        _ = wait_for_event(controller, EventConnected)
+
+        controller.enqueue(CommandSetMotorSpeed(motor_index=2, speed=321))
+        time.sleep(0.05)
+
+        assert msp.calls == []
+        assert created
+        writes = created[0].writes
+        assert len(writes) >= 3
+
+        op3, body3 = parse_control_payload(decode_frame(writes[2]).payload)
+        assert op3 == FcspControlOp.SET_MOTOR_SPEED
+        assert body3 == bytes([0x02, 0x01, 0x41])
+    finally:
+        controller.stop()
+
+
+def test_worker_optimized_fcsp_get_link_status_uses_native_control() -> None:
+    # GET_LINK_STATUS body: flags:u16, rx_drops:u16, crc_err:u16
+    read_script = b"".join(
+        [
+            make_fcsp_control_frame(
+                FcspControlOp.HELLO,
+                build_hello_response_payload(
+                    FcspResult.OK,
+                    [FcspTlv(tlv_type=FCSP_HELLO_TLV_ENDPOINT_NAME, value=b"Tang9k FC")],
+                ),
+                seq=1,
+            ),
+            make_fcsp_control_frame(
+                FcspControlOp.GET_CAPS,
+                build_get_caps_response_payload(
+                    FcspResult.OK,
+                    [FcspTlv(tlv_type=FCSP_CAP_TLV_DSHOT_MOTOR_COUNT, value=b"\x04")],
+                ),
+                seq=2,
+            ),
+            make_fcsp_control_response(FcspControlOp.GET_LINK_STATUS, data=b"\x00\x03\x00\x05\x00\x02", seq=3),
+        ]
+    )
+
+    created: list[FakeFcspTransport] = []
+    msp = FakeMspClient()
+
+    def make_transport(port: str, baudrate: int, timeout: float) -> FakeFcspTransport:
+        transport = FakeFcspTransport(port, baudrate, timeout, read_script=read_script)
+        created.append(transport)
+        return transport
+
+    controller = WorkerController(
+        port_enumerator=lambda: [],
+        transport_factory=make_transport,
+        msp_client_factory=lambda _transport: msp,
+    )
+
+    controller.start()
+    try:
+        controller.enqueue(CommandConnect(port="/dev/ttyUSB0", protocol_mode="optimized_tang9k"))
+        _ = wait_for_event(controller, EventConnected)
+
+        controller.enqueue(CommandGetFcspLinkStatus())
+        link = wait_for_event(controller, EventFcspLinkStatus)
+        assert link.flags == 0x0003
+        assert link.rx_drops == 5
+        assert link.crc_err == 2
+
+        assert msp.calls == []
+        assert created
+        writes = created[0].writes
+        assert len(writes) >= 3
+        op3, body3 = parse_control_payload(decode_frame(writes[2]).payload)
+        assert op3 == FcspControlOp.GET_LINK_STATUS
+        assert body3 == b""
+    finally:
+        controller.stop()
+
+
+def test_worker_optimized_fcsp_set_motor_speed_falls_back_when_op_not_advertised() -> None:
+    read_script = b"".join(
+        [
+            make_fcsp_control_frame(
+                FcspControlOp.HELLO,
+                build_hello_response_payload(
+                    FcspResult.OK,
+                    [FcspTlv(tlv_type=FCSP_HELLO_TLV_ENDPOINT_NAME, value=b"Tang9k FC")],
+                ),
+                seq=1,
+            ),
+            make_fcsp_control_frame(
+                FcspControlOp.GET_CAPS,
+                build_get_caps_response_payload(
+                    FcspResult.OK,
+                    [
+                        FcspTlv(tlv_type=FCSP_CAP_TLV_DSHOT_MOTOR_COUNT, value=b"\x04"),
+                        FcspTlv(tlv_type=FCSP_CAP_TLV_SUPPORTED_OPS, value=b"\x00"),
+                    ],
+                ),
+                seq=2,
+            ),
+            make_fcsp_control_response(FcspControlOp.PT_ENTER, data=b"\x02", seq=3),
+        ]
+    )
+
+    created: list[FakeFcspTransport] = []
+    msp = FakeMspClient()
+
+    def make_transport(port: str, baudrate: int, timeout: float) -> FakeFcspTransport:
+        transport = FakeFcspTransport(port, baudrate, timeout, read_script=read_script)
+        created.append(transport)
+        return transport
+
+    controller = WorkerController(
+        port_enumerator=lambda: [],
+        transport_factory=make_transport,
+        msp_client_factory=lambda _transport: msp,
+    )
+
+    controller.start()
+    try:
+        controller.enqueue(CommandConnect(port="/dev/ttyUSB0", protocol_mode="optimized_tang9k"))
+        _ = wait_for_event(controller, EventConnected)
+
+        controller.enqueue(CommandSetMotorSpeed(motor_index=1, speed=250))
+        time.sleep(0.08)
+
+        assert msp.calls
+        assert msp.calls[-1][0] == 214
+
+        assert created
+        writes = created[0].writes
+        assert len(writes) >= 2
+        ops = [parse_control_payload(decode_frame(raw).payload)[0] for raw in writes]
+        assert FcspControlOp.HELLO in ops
+        assert FcspControlOp.GET_CAPS in ops
+        assert FcspControlOp.SET_MOTOR_SPEED not in ops
+
+        logs = drain_events(controller, EventLog, timeout=0.4)
+        assert any("SET_MOTOR_SPEED not advertised" in event.message for event in logs)
+    finally:
+        controller.stop()
+
+
+def test_worker_optimized_fcsp_enter_passthrough_falls_back_when_op_not_advertised() -> None:
+    read_script = b"".join(
+        [
+            make_fcsp_control_frame(
+                FcspControlOp.HELLO,
+                build_hello_response_payload(
+                    FcspResult.OK,
+                    [FcspTlv(tlv_type=FCSP_HELLO_TLV_ENDPOINT_NAME, value=b"Tang9k FC")],
+                ),
+                seq=1,
+            ),
+            make_fcsp_control_frame(
+                FcspControlOp.GET_CAPS,
+                build_get_caps_response_payload(
+                    FcspResult.OK,
+                    [
+                        FcspTlv(tlv_type=FCSP_CAP_TLV_DSHOT_MOTOR_COUNT, value=b"\x04"),
+                        FcspTlv(tlv_type=FCSP_CAP_TLV_SUPPORTED_OPS, value=b"\x00"),
+                    ],
+                ),
+                seq=2,
+            ),
+        ]
+    )
+
+    created: list[FakeFcspTransport] = []
+    msp = FakeMspClient(responses=[b"\x03"])
+
+    def make_transport(port: str, baudrate: int, timeout: float) -> FakeFcspTransport:
+        transport = FakeFcspTransport(port, baudrate, timeout, read_script=read_script)
+        created.append(transport)
+        return transport
+
+    controller = WorkerController(
+        port_enumerator=lambda: [],
+        transport_factory=make_transport,
+        msp_client_factory=lambda _transport: msp,
+    )
+
+    controller.start()
+    try:
+        controller.enqueue(CommandConnect(port="/dev/ttyUSB0", protocol_mode="optimized_tang9k"))
+        _ = wait_for_event(controller, EventConnected)
+
+        controller.enqueue(CommandEnterPassthrough(motor_index=1))
+        pt = wait_for_passthrough_state(controller, active=True)
+        assert pt.motor_index == 1
+        assert pt.esc_count == 3
+
+        passthrough_calls = [(cmd, payload) for cmd, payload in msp.calls if cmd == 245]
+        assert passthrough_calls
+        assert passthrough_calls[-1][1] == bytes([0x00, 0x01])
+
+        assert created
+        writes = created[0].writes
+        ops = [parse_control_payload(decode_frame(raw).payload)[0] for raw in writes]
+        assert FcspControlOp.HELLO in ops
+        assert FcspControlOp.GET_CAPS in ops
+        assert FcspControlOp.PT_ENTER not in ops
+    finally:
+        controller.stop()
+
+
+def test_worker_optimized_fcsp_get_link_status_warns_when_op_not_advertised() -> None:
+    read_script = b"".join(
+        [
+            make_fcsp_control_frame(
+                FcspControlOp.HELLO,
+                build_hello_response_payload(
+                    FcspResult.OK,
+                    [FcspTlv(tlv_type=FCSP_HELLO_TLV_ENDPOINT_NAME, value=b"Tang9k FC")],
+                ),
+                seq=1,
+            ),
+            make_fcsp_control_frame(
+                FcspControlOp.GET_CAPS,
+                build_get_caps_response_payload(
+                    FcspResult.OK,
+                    [
+                        FcspTlv(tlv_type=FCSP_CAP_TLV_DSHOT_MOTOR_COUNT, value=b"\x04"),
+                        FcspTlv(tlv_type=FCSP_CAP_TLV_SUPPORTED_OPS, value=b"\x00"),
+                    ],
+                ),
+                seq=2,
+            ),
+        ]
+    )
+
+    controller = WorkerController(
+        port_enumerator=lambda: [],
+        transport_factory=lambda p, b, t: FakeFcspTransport(p, b, t, read_script=read_script),
+        msp_client_factory=lambda _transport: FakeMspClient(),
+    )
+
+    controller.start()
+    try:
+        controller.enqueue(CommandConnect(port="/dev/ttyUSB0", protocol_mode="optimized_tang9k"))
+        _ = wait_for_event(controller, EventConnected)
+
+        controller.enqueue(CommandGetFcspLinkStatus())
+        logs = drain_events(controller, EventLog, timeout=0.8)
+        assert any("GET_LINK_STATUS not advertised" in event.message for event in logs)
+    finally:
+        controller.stop()
+
+
+def test_worker_get_fcsp_link_status_warns_when_fcsp_inactive() -> None:
+    controller = WorkerController(
+        port_enumerator=lambda: [],
+        transport_factory=lambda p, b, t: FakeTransport(p, b, t),
+        msp_client_factory=lambda _transport: FakeMspClient(),
+    )
+
+    controller.start()
+    try:
+        controller.enqueue(CommandConnect(port="/dev/ttyUSB0", protocol_mode="msp"))
+        _ = wait_for_event(controller, EventConnected)
+
+        controller.enqueue(CommandGetFcspLinkStatus())
+        logs = drain_events(controller, EventLog, timeout=0.6)
+        assert any("FCSP link status unavailable" in event.message for event in logs)
+    finally:
+        controller.stop()
+
+
+def test_worker_optimized_fcsp_read_settings_uses_read_block() -> None:
+    payload = bytes(range(16))
+    read_script = b"".join(
+        [
+            make_fcsp_control_frame(
+                FcspControlOp.HELLO,
+                build_hello_response_payload(
+                    FcspResult.OK,
+                    [FcspTlv(tlv_type=FCSP_HELLO_TLV_ENDPOINT_NAME, value=b"Tang9k FC")],
+                ),
+                seq=1,
+            ),
+            make_fcsp_control_frame(
+                FcspControlOp.GET_CAPS,
+                build_get_caps_response_payload(
+                    FcspResult.OK,
+                    [
+                        FcspTlv(tlv_type=FCSP_CAP_TLV_DSHOT_MOTOR_COUNT, value=b"\x04"),
+                        FcspTlv(tlv_type=FCSP_CAP_TLV_SUPPORTED_OPS, value=b"\xFF\xFF\xFF"),
+                        FcspTlv(tlv_type=FCSP_CAP_TLV_SUPPORTED_SPACES, value=b"\xFF"),
+                    ],
+                ),
+                seq=2,
+            ),
+            make_fcsp_control_response(FcspControlOp.READ_BLOCK, data=b"\x00\x10" + payload, seq=3),
+        ]
+    )
+
+    created: list[FakeFcspTransport] = []
+    msp = FakeMspClient()
+
+    def make_transport(port: str, baudrate: int, timeout: float) -> FakeFcspTransport:
+        transport = FakeFcspTransport(port, baudrate, timeout, read_script=read_script)
+        created.append(transport)
+        return transport
+
+    controller = WorkerController(
+        port_enumerator=lambda: [],
+        transport_factory=make_transport,
+        msp_client_factory=lambda _transport: msp,
+        fourway_client_factory=lambda _transport: FakeFourWayClient(),
+    )
+
+    controller.start()
+    try:
+        controller.enqueue(CommandConnect(port="/dev/ttyUSB0", protocol_mode="optimized_tang9k"))
+        _ = wait_for_event(controller, EventConnected)
+
+        controller.enqueue(CommandReadSettings(length=16, address=0x0010, motor_index=2))
+        settings = wait_for_event(controller, EventSettingsLoaded)
+        assert settings.address == 0x0010
+        assert settings.data == payload
+        assert settings.motor_index == 2
+
+        assert msp.calls == []
+        assert created
+        writes = created[0].writes
+        assert len(writes) >= 3
+        op3, body3 = parse_control_payload(decode_frame(writes[2]).payload)
+        assert op3 == FcspControlOp.READ_BLOCK
+        assert body3[0] == 0x02  # ESC_EEPROM
+        assert body3[1:5] == b"\x00\x00\x00\x10"
+        assert body3[5:7] == b"\x00\x10"
+    finally:
+        controller.stop()
+
+
+def test_worker_optimized_fcsp_write_settings_uses_write_block_and_verify_read_block() -> None:
+    write_payload = bytes([0xAA, 0x55, 0x10, 0x20])
+    read_script = b"".join(
+        [
+            make_fcsp_control_frame(
+                FcspControlOp.HELLO,
+                build_hello_response_payload(
+                    FcspResult.OK,
+                    [FcspTlv(tlv_type=FCSP_HELLO_TLV_ENDPOINT_NAME, value=b"Tang9k FC")],
+                ),
+                seq=1,
+            ),
+            make_fcsp_control_frame(
+                FcspControlOp.GET_CAPS,
+                build_get_caps_response_payload(
+                    FcspResult.OK,
+                    [
+                        FcspTlv(tlv_type=FCSP_CAP_TLV_DSHOT_MOTOR_COUNT, value=b"\x04"),
+                        FcspTlv(tlv_type=FCSP_CAP_TLV_SUPPORTED_OPS, value=b"\xFF\xFF\xFF"),
+                        FcspTlv(tlv_type=FCSP_CAP_TLV_SUPPORTED_SPACES, value=b"\xFF"),
+                    ],
+                ),
+                seq=2,
+            ),
+            make_fcsp_control_response(FcspControlOp.WRITE_BLOCK, data=b"\x00\x04", seq=3),
+            make_fcsp_control_response(FcspControlOp.READ_BLOCK, data=b"\x00\x04" + write_payload, seq=4),
+        ]
+    )
+
+    created: list[FakeFcspTransport] = []
+    msp = FakeMspClient()
+
+    def make_transport(port: str, baudrate: int, timeout: float) -> FakeFcspTransport:
+        transport = FakeFcspTransport(port, baudrate, timeout, read_script=read_script)
+        created.append(transport)
+        return transport
+
+    controller = WorkerController(
+        port_enumerator=lambda: [],
+        transport_factory=make_transport,
+        msp_client_factory=lambda _transport: msp,
+        fourway_client_factory=lambda _transport: FakeFourWayClient(),
+    )
+
+    controller.start()
+    try:
+        controller.enqueue(CommandConnect(port="/dev/ttyUSB0", protocol_mode="optimized_tang9k"))
+        _ = wait_for_event(controller, EventConnected)
+
+        controller.enqueue(CommandWriteSettings(address=0x0020, data=write_payload, verify_readback=True))
+        write_event = wait_for_event(controller, EventSettingsWritten)
+        assert write_event.address == 0x0020
+        assert write_event.size == len(write_payload)
+        assert write_event.verified is True
+
+        assert msp.calls == []
+        assert created
+        writes = created[0].writes
+        assert len(writes) >= 4
+        op3, body3 = parse_control_payload(decode_frame(writes[3 - 1]).payload)
+        op4, body4 = parse_control_payload(decode_frame(writes[4 - 1]).payload)
+        assert op3 == FcspControlOp.WRITE_BLOCK
+        assert op4 == FcspControlOp.READ_BLOCK
+        assert body3[0] == 0x02  # ESC_EEPROM
+        assert body3[1:5] == b"\x00\x00\x00\x20"
+        assert body3[5:7] == b"\x00\x04"
+        assert body3[7:] == write_payload
+        assert body4[0] == 0x02
+        assert body4[1:5] == b"\x00\x00\x00\x20"
+        assert body4[5:7] == b"\x00\x04"
+    finally:
+        controller.stop()
+
+
+def test_worker_optimized_fcsp_read_settings_falls_back_when_space_not_advertised() -> None:
+    read_script = b"".join(
+        [
+            make_fcsp_control_frame(
+                FcspControlOp.HELLO,
+                build_hello_response_payload(
+                    FcspResult.OK,
+                    [FcspTlv(tlv_type=FCSP_HELLO_TLV_ENDPOINT_NAME, value=b"Tang9k FC")],
+                ),
+                seq=1,
+            ),
+            make_fcsp_control_frame(
+                FcspControlOp.GET_CAPS,
+                build_get_caps_response_payload(
+                    FcspResult.OK,
+                    [
+                        FcspTlv(tlv_type=FCSP_CAP_TLV_DSHOT_MOTOR_COUNT, value=b"\x04"),
+                        FcspTlv(tlv_type=FCSP_CAP_TLV_SUPPORTED_OPS, value=b"\xFF\xFF\xFF"),
+                        FcspTlv(tlv_type=FCSP_CAP_TLV_SUPPORTED_SPACES, value=b"\x00"),
+                    ],
+                ),
+                seq=2,
+            ),
+            make_fcsp_control_response(FcspControlOp.PT_ENTER, data=b"\x02", seq=3),
+        ]
+    )
+
+    created: list[FakeFcspTransport] = []
+    msp = FakeMspClient()
+    fourway = FakeFourWayClient()
+
+    def make_transport(port: str, baudrate: int, timeout: float) -> FakeFcspTransport:
+        transport = FakeFcspTransport(port, baudrate, timeout, read_script=read_script)
+        created.append(transport)
+        return transport
+
+    controller = WorkerController(
+        port_enumerator=lambda: [],
+        transport_factory=make_transport,
+        msp_client_factory=lambda _transport: msp,
+        fourway_client_factory=lambda _transport: fourway,
+    )
+
+    controller.start()
+    try:
+        controller.enqueue(CommandConnect(port="/dev/ttyUSB0", protocol_mode="optimized_tang9k"))
+        _ = wait_for_event(controller, EventConnected)
+
+        controller.enqueue(CommandReadSettings(length=8, address=0x0000, motor_index=1))
+        settings = wait_for_event(controller, EventSettingsLoaded)
+        assert len(settings.data) == 8
+
+        assert msp.calls == []
+
+        assert created
+        ops = [parse_control_payload(decode_frame(raw).payload)[0] for raw in created[0].writes]
+        assert FcspControlOp.PT_ENTER in ops
+        assert FcspControlOp.READ_BLOCK not in ops
+        assert any(call[0] == FOURWAY_CMDS["read_eeprom"] for call in fourway.send_calls)
     finally:
         controller.stop()
 
@@ -1146,6 +1987,63 @@ def test_app_state_connected_status_is_protocol_agnostic() -> None:
     state.apply_event(EventDisconnected(reason="bye"))
     state.apply_event(EventConnected(port="/dev/ttyUSB0", baudrate=115200, protocol_mode="optimized_tang9k"))
     assert state.status_text == "Connected to /dev/ttyUSB0 @ 115200"
+
+
+def test_app_state_records_fcsp_capabilities_for_optimized_mode() -> None:
+    state = create_app_state()
+
+    state.apply_event(
+        EventFcspCapabilities(
+            peer_name="offloader",
+            esc_count=4,
+            feature_flags=1,
+            tlvs=(
+                FcspTlv(tlv_type=FCSP_CAP_TLV_DSHOT_MOTOR_COUNT, value=b"\x00\x04"),
+                FcspTlv(tlv_type=FCSP_CAP_TLV_FEATURE_FLAGS, value=b"\x00\x00\x00\x01"),
+            ),
+        )
+    )
+
+    assert state.fcsp_connected_peer == "offloader"
+    assert state.fcsp_cap_esc_count == 4
+    assert state.fcsp_cap_feature_flags == 1
+    assert any("DSHOT motor count: 4" in entry for entry in state.fcsp_cap_descriptions)
+    assert any("Feature flags: 0x00000001" in entry for entry in state.fcsp_cap_descriptions)
+
+
+def test_app_state_decodes_fcsp_supported_op_and_space_flags() -> None:
+    state = create_app_state()
+
+    state.apply_event(
+        EventFcspCapabilities(
+            peer_name="offloader",
+            esc_count=4,
+            feature_flags=1,
+            tlvs=(
+                FcspTlv(tlv_type=FCSP_CAP_TLV_SUPPORTED_OPS, value=b"\xFF\xFF\xFF"),
+                FcspTlv(tlv_type=FCSP_CAP_TLV_SUPPORTED_SPACES, value=b"\xFF"),
+                FcspTlv(tlv_type=FCSP_CAP_TLV_DSHOT_MOTOR_COUNT, value=b"\x00\x04"),
+            ),
+        )
+    )
+
+    assert state.fcsp_supported_ops_bitmap_hex == "FF FF FF"
+    assert state.fcsp_supported_spaces_bitmap_hex == "FF"
+    assert state.fcsp_supports_get_link_status is True
+    assert state.fcsp_supports_read_block is True
+    assert state.fcsp_supports_write_block is True
+    assert state.fcsp_supports_esc_eeprom_space is True
+
+
+def test_app_state_records_fcsp_link_status() -> None:
+    state = create_app_state()
+
+    state.apply_event(EventFcspLinkStatus(flags=0x0003, rx_drops=5, crc_err=2))
+
+    assert state.fcsp_link_flags == 0x0003
+    assert state.fcsp_link_rx_drops == 5
+    assert state.fcsp_link_crc_err == 2
+    assert "flags=0x0003" in state.status_text
 
 
 def test_worker_connect_msp_probe_logs_identity_fields() -> None:

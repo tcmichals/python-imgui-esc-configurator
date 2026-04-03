@@ -25,6 +25,7 @@ from .worker import (
     CommandExitPassthrough,
     CommandFlashEsc,
     CommandFlashAllEscs,
+    CommandGetFcspLinkStatus,
     CommandRefreshFirmwareCatalog,
     CommandReadSettings,
     CommandSetMotorSpeed,
@@ -94,7 +95,7 @@ def _status_metrics_text(
 def drain_worker_events(state: AppState, controller: WorkerController) -> None:
     """Apply any worker-generated events to the UI state."""
 
-    for event in controller.poll_events():
+    for event in controller.poll_events(max_events=100):
         state.apply_event(event)
 
 
@@ -165,6 +166,54 @@ def render_connection_panel(state: AppState, controller: WorkerController) -> No
     imgui.text(f"Detected: {len(state.available_ports)}")
     imgui.same_line()
     imgui.text(f"Baud: {state.connection.baud_rate}")
+
+    if state.connection_protocol_mode == "optimized_tang9k":
+        imgui.separator()
+        imgui.text("FCSP Link")
+        imgui.text(f"Peer: {state.fcsp_connected_peer or '<probing / unavailable>'}")
+        esc_count_text = str(state.fcsp_cap_esc_count) if state.fcsp_cap_esc_count is not None else "<n/a>"
+        flags_text = f"0x{state.fcsp_cap_feature_flags:X}" if state.fcsp_cap_feature_flags is not None else "<n/a>"
+        imgui.same_line()
+        imgui.text(f"ESC Count: {esc_count_text}")
+        imgui.same_line()
+        imgui.text(f"Flags: {flags_text}")
+        support_get_link = (
+            "yes" if state.fcsp_supports_get_link_status is True else
+            "no" if state.fcsp_supports_get_link_status is False else
+            "<unknown>"
+        )
+        support_read_block = (
+            "yes" if state.fcsp_supports_read_block is True else
+            "no" if state.fcsp_supports_read_block is False else
+            "<unknown>"
+        )
+        support_write_block = (
+            "yes" if state.fcsp_supports_write_block is True else
+            "no" if state.fcsp_supports_write_block is False else
+            "<unknown>"
+        )
+        support_esc_eeprom = (
+            "yes" if state.fcsp_supports_esc_eeprom_space is True else
+            "no" if state.fcsp_supports_esc_eeprom_space is False else
+            "<unknown>"
+        )
+        imgui.text(
+            f"Support: GET_LINK_STATUS={support_get_link} READ_BLOCK={support_read_block} "
+            f"WRITE_BLOCK={support_write_block} ESC_EEPROM={support_esc_eeprom}"
+        )
+        link_flags_text = f"0x{state.fcsp_link_flags:04X}" if state.fcsp_link_flags is not None else "<n/a>"
+        link_drops_text = str(state.fcsp_link_rx_drops) if state.fcsp_link_rx_drops is not None else "<n/a>"
+        link_crc_text = str(state.fcsp_link_crc_err) if state.fcsp_link_crc_err is not None else "<n/a>"
+        imgui.text(f"Link: flags={link_flags_text} drops={link_drops_text} crc={link_crc_text}")
+        can_refresh_link = state.connected and state.fcsp_supports_get_link_status is not False
+        if not can_refresh_link:
+            imgui.begin_disabled()
+        if imgui.small_button("Refresh FCSP Link Status"):
+            controller.enqueue(CommandGetFcspLinkStatus())
+        if not can_refresh_link:
+            imgui.end_disabled()
+        for description in state.fcsp_cap_descriptions[:8]:
+            imgui.bullet_text(description)
 
     if state.last_error:
         imgui.separator()
@@ -963,6 +1012,23 @@ def render_diagnostics_panel(state: AppState) -> None:
         imgui.text_wrapped(f"Last Diagnostics Export: {state.diagnostics_last_export_path}")
     imgui.text(f"Visible UI Log Entries: {len(state.logs)}")
     imgui.text(f"Visible Protocol Trace Entries: {len(state.protocol_traces)}")
+
+    if state.connection_protocol_mode == "optimized_tang9k":
+        imgui.separator()
+        imgui.text("FCSP Capability Snapshot")
+        imgui.text(f"Peer: {state.fcsp_connected_peer or '<unknown>'}")
+        imgui.text(
+            "Capabilities: "
+            f"{len(state.fcsp_cap_descriptions)} entry(ies), "
+            f"ESCs={state.fcsp_cap_esc_count if state.fcsp_cap_esc_count is not None else '<n/a>'}, "
+            f"Flags={f'0x{state.fcsp_cap_feature_flags:X}' if state.fcsp_cap_feature_flags is not None else '<n/a>'}"
+        )
+        imgui.text(
+            "Link: "
+            f"flags={f'0x{state.fcsp_link_flags:04X}' if state.fcsp_link_flags is not None else '<n/a>'} "
+            f"drops={state.fcsp_link_rx_drops if state.fcsp_link_rx_drops is not None else '<n/a>'} "
+            f"crc={state.fcsp_link_crc_err if state.fcsp_link_crc_err is not None else '<n/a>'}"
+        )
 
 
 def render_main_window(state: AppState, controller: WorkerController) -> None:

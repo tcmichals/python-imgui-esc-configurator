@@ -27,6 +27,35 @@ from MSP import (
     crc16_xmodem,
     list_serial_ports,
 )
+from comm_proto.fcsp import (
+    FCSP_CAP_TLV_DSHOT_MOTOR_COUNT,
+    FCSP_CAP_TLV_PWM_CHANNEL_COUNT,
+    FCSP_CAP_TLV_SUPPORTED_OPS,
+    FCSP_CAP_TLV_SUPPORTED_SPACES,
+    FCSP_HELLO_TLV_ENDPOINT_NAME,
+    FCSP_HELLO_TLV_PROFILE_STRING,
+    FCSP_HELLO_TLV_PROTOCOL_STRING,
+    FcspAddressSpace,
+    FcspChannel,
+    FcspControlOp,
+    FcspEndpointRole,
+    FcspResult,
+    FcspStreamParser,
+    FcspTlv,
+    build_get_caps_request_payload,
+    build_hello_payload,
+    build_read_block_payload,
+    build_control_payload,
+    build_write_block_payload,
+    decode_frame,
+    encode_frame,
+    format_capability_tlv,
+    parse_get_caps_response_payload,
+    parse_hello_response_payload,
+    parse_control_payload,
+    summarize_hello_tlvs,
+    summarize_capability_tlvs,
+)
 
 from .firmware_catalog import FirmwareCatalogClient, FirmwareCatalogSnapshot, FirmwareRelease, describe_release_compatibility, load_firmware_file
 from .settings_decoder import DecodedSettings, decode_settings_payload
@@ -94,6 +123,15 @@ class CommandShutdown:
 
 
 @dataclass(frozen=True)
+class _CommandPostConnectSetup:
+    """Internal follow-up step so connection events are visible before probe logs."""
+
+    port: str
+    baudrate: int
+    protocol_mode: str
+
+
+@dataclass(frozen=True)
 class CommandEnterPassthrough:
     """Request MSP passthrough entry for the selected motor."""
 
@@ -118,6 +156,11 @@ class CommandSetMotorSpeed:
 
     motor_index: int = 0
     speed: int = 0
+
+
+@dataclass(frozen=True)
+class CommandGetFcspLinkStatus:
+    """Request FCSP GET_LINK_STATUS for optimized-mode diagnostics."""
 
 
 @dataclass(frozen=True)
@@ -237,6 +280,25 @@ class EventProtocolTrace:
 
     channel: str
     message: str
+
+
+@dataclass(frozen=True)
+class EventFcspCapabilities:
+    """Decoded FCSP handshake and capability information for optimized mode."""
+
+    peer_name: str
+    esc_count: int | None
+    feature_flags: int | None
+    tlvs: tuple[FcspTlv, ...] = ()
+
+
+@dataclass(frozen=True)
+class EventFcspLinkStatus:
+    """Latest FCSP link health counters from GET_LINK_STATUS."""
+
+    flags: int
+    rx_drops: int
+    crc_err: int
 
 
 @dataclass(frozen=True)
@@ -391,6 +453,11 @@ class WorkerController:
         self._last_decoded_settings: DecodedSettings | None = None
         self._last_settings_motor: int | None = None
         self._cancel_requested = threading.Event()
+        self._fcsp_seq = 0
+        self._fcsp_probe_attempted = False
+        self._fcsp_handshake_ok = False
+        self._fcsp_supported_ops_bitmap: bytes | None = None
+        self._fcsp_supported_spaces_bitmap: bytes | None = None
 
     def _emit_msp_stats(self) -> None:
         elapsed = max(0.001, perf_counter() - self._msp_started_at)
@@ -533,6 +600,248 @@ class WorkerController:
 
     def _trace_protocol(self, channel: str, message: str) -> None:
         self._emit(EventProtocolTrace(channel=channel, message=message))
+
+    def _fcsp_next_seq(self) -> int:
+        seq = self._fcsp_seq & 0xFFFF
+        self._fcsp_seq = (self._fcsp_seq + 1) & 0xFFFF
+        return seq
+
+    def _transport_supports_fcsp(self) -> bool:
+        transport = self._transport
+        if transport is None:
+            return False
+        writer = getattr(transport, "write", None)
+        reader = getattr(transport, "read", None)
+        return callable(writer) and callable(reader)
+
+    def _read_fcsp_frame(self, timeout: float = 0.35) -> Any:
+        if self._transport is None:
+            raise RuntimeError("FCSP read requested without active transport")
+        parser = FcspStreamParser()
+        deadline = time.time() + max(0.05, float(timeout))
+        while time.time() < deadline:
+            chunk = self._transport.read(1)
+            if not chunk:
+                continue
+            frames = parser.feed(chunk)
+            if frames:
+                return frames[0]
+        raise TimeoutError("timeout waiting for FCSP response frame")
+
+    def _send_fcsp_control(self, op: FcspControlOp, data: bytes = b"", timeout: float = 0.35) -> tuple[int | None, bytes]:
+        if self._transport is None:
+            raise RuntimeError("FCSP send requested without active transport")
+        request_payload = build_control_payload(int(op), data)
+        request_frame = encode_frame(
+            int(FcspChannel.CONTROL),
+            seq=self._fcsp_next_seq(),
+            payload=request_payload,
+        )
+        self._trace_protocol("FCSP", f"FCSP -> {op.name}: {request_frame.hex(' ').upper()}")
+        self._transport.write(request_frame)
+
+        response = self._read_fcsp_frame(timeout=timeout)
+        response_bytes = encode_frame(
+            response.channel,
+            seq=response.seq,
+            payload=bytes(response.payload),
+            flags=response.flags,
+            version=response.version,
+        )
+        # Validate round-trip decode to surface malformed parser state early.
+        decode_frame(response_bytes)
+        self._trace_protocol("FCSP", f"FCSP <= CH{response.channel:02X}: {response_bytes.hex(' ').upper()}")
+
+        if int(response.channel) != int(FcspChannel.CONTROL):
+            raise RuntimeError(f"unexpected FCSP channel 0x{int(response.channel):02X} while waiting for control reply")
+
+        resp_op, resp_body = parse_control_payload(bytes(response.payload))
+        expected_op = int(op)
+        if int(resp_op) != expected_op:
+            raise RuntimeError(f"unexpected FCSP control op 0x{int(resp_op):02X}; expected 0x{expected_op:02X}")
+
+        if not resp_body:
+            return None, b""
+        return int(resp_body[0]), bytes(resp_body[1:])
+
+    def _fcsp_result_label(self, result_code: int) -> str:
+        try:
+            return FcspResult(int(result_code)).name
+        except ValueError:
+            return f"0x{int(result_code) & 0xFF:02X}"
+
+    def _send_fcsp_control_checked(self, op: FcspControlOp, data: bytes = b"", timeout: float = 0.35) -> bytes:
+        result, body = self._send_fcsp_control(op, data, timeout=timeout)
+        status = int(FcspResult.OK) if result is None else int(result)
+        if status != int(FcspResult.OK):
+            raise RuntimeError(f"{op.name} returned {self._fcsp_result_label(status)}")
+        return body
+
+    def _fcsp_bitmap_has_index(self, bitmap: bytes, index: int) -> bool:
+        if index < 0:
+            return False
+        byte_index = index // 8
+        if byte_index >= len(bitmap):
+            return False
+        byte = int(bitmap[byte_index])
+        bit_in_byte = index % 8
+        lsb_first = bool(byte & (1 << bit_in_byte))
+        msb_first = bool(byte & (1 << (7 - bit_in_byte)))
+        return lsb_first or msb_first
+
+    def _fcsp_op_is_advertised(self, op: FcspControlOp) -> bool:
+        bitmap = self._fcsp_supported_ops_bitmap
+        if bitmap is None:
+            return True
+        return self._fcsp_bitmap_has_index(bitmap, int(op))
+
+    def _fcsp_space_is_advertised(self, space: int) -> bool:
+        bitmap = self._fcsp_supported_spaces_bitmap
+        if bitmap is None:
+            return True
+        return self._fcsp_bitmap_has_index(bitmap, int(space))
+
+    def _fcsp_control_op_ready(self, op: FcspControlOp, *, allow_fallback: bool) -> bool:
+        if not self._ensure_fcsp_control_ready():
+            return False
+        if self._fcsp_op_is_advertised(op):
+            return True
+        fallback_note = "falling back to MSP compatibility path." if allow_fallback else "no fallback path available."
+        self._emit(
+            EventLog(
+                "warning",
+                f"FCSP op {op.name} not advertised by peer capabilities; {fallback_note}",
+                source="fcsp",
+            )
+        )
+        return False
+
+    def _fcsp_block_op_ready(self, op: FcspControlOp, space: int, *, allow_fallback: bool) -> bool:
+        if not self._fcsp_control_op_ready(op, allow_fallback=allow_fallback):
+            return False
+        if self._fcsp_space_is_advertised(space):
+            return True
+        fallback_note = "falling back to MSP/4-way compatibility path." if allow_fallback else "no fallback path available."
+        self._emit(
+            EventLog(
+                "warning",
+                f"FCSP space 0x{int(space) & 0xFF:02X} not advertised by peer capabilities; {fallback_note}",
+                source="fcsp",
+            )
+        )
+        return False
+
+    def _ensure_fcsp_control_ready(self) -> bool:
+        if self._protocol_mode != PROTOCOL_MODE_OPTIMIZED_TANG9K:
+            return False
+        if self._fcsp_handshake_ok and self._transport_supports_fcsp():
+            return True
+        if self._fcsp_probe_attempted or not self._transport_supports_fcsp():
+            return False
+        try:
+            return self._probe_fcsp_handshake()
+        except Exception as exc:
+            self._fcsp_handshake_ok = False
+            self._emit(
+                EventLog(
+                    "warning",
+                    f"FCSP control path unavailable ({exc}); using MSP compatibility path.",
+                    source="fcsp",
+                )
+            )
+            return False
+
+    def _probe_fcsp_handshake(self) -> bool:
+        self._fcsp_probe_attempted = True
+        self._fcsp_handshake_ok = False
+        if not self._transport_supports_fcsp():
+            self._emit(
+                EventLog(
+                    "warning",
+                    "Optimized protocol selected but transport does not expose raw read/write for FCSP probe; continuing with MSP compatibility path.",
+                    source="fcsp",
+                )
+            )
+            return False
+
+        hello_payload = build_hello_payload(
+            [
+                FcspTlv(tlv_type=FCSP_HELLO_TLV_ENDPOINT_NAME, value=b"python-imgui-esc-configurator"),
+                FcspTlv(tlv_type=FCSP_HELLO_TLV_PROTOCOL_STRING, value=b"FCSP/1"),
+                FcspTlv(tlv_type=FCSP_HELLO_TLV_PROFILE_STRING, value=b"PY-GUI"),
+            ]
+        )
+        hello_result, hello_data = self._send_fcsp_control(FcspControlOp.HELLO, hello_payload, timeout=0.4)
+        if hello_result not in (None, 0):
+            raise RuntimeError(f"HELLO returned result=0x{hello_result:02X}")
+        hello_status, hello_tlvs = parse_hello_response_payload(bytes([hello_result or 0]) + hello_data)
+        if hello_status not in (0, int(FcspResult.OK)):
+            raise RuntimeError(f"HELLO returned result=0x{hello_status:02X}")
+        hello_summary = summarize_hello_tlvs(hello_tlvs)
+        peer_name = hello_summary.endpoint_name or ""
+
+        self._emit(
+            EventLog(
+                "info",
+                (
+                    "FCSP HELLO ok"
+                    + (f": {peer_name}" if peer_name else "")
+                ),
+                source="fcsp",
+            )
+        )
+
+        caps_result, caps_data = self._send_fcsp_control(
+            FcspControlOp.GET_CAPS,
+            build_get_caps_request_payload(),
+            timeout=0.4,
+        )
+        if caps_result not in (None, 0):
+            raise RuntimeError(f"GET_CAPS returned result=0x{caps_result:02X}")
+
+        caps_status, caps_tlvs, _page, _has_more = parse_get_caps_response_payload(bytes([caps_result or 0]) + caps_data)
+        if caps_status not in (0, int(FcspResult.OK)):
+            raise RuntimeError(f"GET_CAPS returned result=0x{caps_status:02X}")
+        caps_summary = summarize_capability_tlvs(caps_tlvs)
+        self._fcsp_supported_ops_bitmap = caps_summary.supported_ops_bitmap
+        self._fcsp_supported_spaces_bitmap = caps_summary.supported_spaces_bitmap
+        tlv_count = len(caps_summary.entries)
+        self._emit(
+            EventFcspCapabilities(
+                peer_name=peer_name,
+                esc_count=(caps_summary.dshot_motor_count if caps_summary.dshot_motor_count is not None else caps_summary.pwm_channel_count),
+                feature_flags=caps_summary.feature_flags,
+                tlvs=caps_summary.entries,
+            )
+        )
+        discovered_motor_count = (
+            caps_summary.dshot_motor_count
+            if caps_summary.dshot_motor_count is not None
+            else caps_summary.pwm_channel_count
+        )
+        if discovered_motor_count is not None:
+            self._set_motor_count(discovered_motor_count)
+        detail_parts: list[str] = []
+        if caps_summary.dshot_motor_count is not None:
+            detail_parts.append(f"DSHOT motors={caps_summary.dshot_motor_count}")
+        elif caps_summary.pwm_channel_count is not None:
+            detail_parts.append(f"PWM channels={caps_summary.pwm_channel_count}")
+        if caps_summary.feature_flags is not None:
+            detail_parts.append(f"flags=0x{caps_summary.feature_flags:X}")
+        if caps_summary.profile_string:
+            detail_parts.append(f"profile={caps_summary.profile_string}")
+        self._emit(
+            EventLog(
+                "info",
+                f"FCSP GET_CAPS ok: {tlv_count} TLV entr{'y' if tlv_count == 1 else 'ies'}"
+                + (f" ({', '.join(detail_parts)})" if detail_parts else ""),
+                source="fcsp",
+            )
+        )
+        for entry in caps_summary.entries:
+            self._emit(EventLog("info", format_capability_tlv(entry), source="fcsp"))
+        self._fcsp_handshake_ok = True
+        return True
 
     def _format_bytes(self, data: bytes, limit: int = 48) -> str:
         if not data:
@@ -715,6 +1024,11 @@ class WorkerController:
         self._msp_total = 0
         self._msp_errors = 0
         self._msp_started_at = perf_counter()
+        self._fcsp_seq = 0
+        self._fcsp_probe_attempted = False
+        self._fcsp_handshake_ok = False
+        self._fcsp_supported_ops_bitmap = None
+        self._fcsp_supported_spaces_bitmap = None
         self._emit(EventPassthroughState(active=False, motor_index=0, esc_count=0))
         self._emit(EventMotorCount(count=self._motor_count))
         self._emit_msp_stats()
@@ -759,6 +1073,10 @@ class WorkerController:
         self._msp_total = 0
         self._msp_errors = 0
         self._msp_started_at = perf_counter()
+        self._fcsp_probe_attempted = False
+        self._fcsp_handshake_ok = False
+        self._fcsp_supported_ops_bitmap = None
+        self._fcsp_supported_spaces_bitmap = None
 
         self._emit(
             EventConnected(
@@ -770,7 +1088,8 @@ class WorkerController:
         self._emit_msp_stats()
         self._emit(EventMotorCount(count=self._motor_count))
         self._dshot_speeds = [0] * self._motor_count
-        self._query_motor_count_from_msp()
+        if protocol_mode != PROTOCOL_MODE_OPTIMIZED_TANG9K:
+            self._query_motor_count_from_msp()
         self._emit(EventPassthroughState(active=False, motor_index=0, esc_count=0))
         self._emit(
             EventLog(
@@ -779,15 +1098,50 @@ class WorkerController:
             )
         )
         if protocol_mode == PROTOCOL_MODE_OPTIMIZED_TANG9K:
-            self._emit(
-                EventLog(
-                    "info",
-                    "Optimized protocol selected (Tang9K SERV+PIO path); MSP fallback remains active until Tang9K transport is wired.",
-                    source="tang9k",
-                )
+            timer = threading.Timer(
+                0.20,
+                lambda: self.enqueue(
+                    _CommandPostConnectSetup(
+                        port=command.port,
+                        baudrate=command.baudrate,
+                        protocol_mode=protocol_mode,
+                    )
+                ),
             )
+            timer.daemon = True
+            timer.start()
         if self._msp_probe_on_connect:
             self._probe_msp_identity()
+
+    def _handle_post_connect_setup(self, command: _CommandPostConnectSetup) -> None:
+        if self._transport is None:
+            return
+        if command.protocol_mode == PROTOCOL_MODE_OPTIMIZED_TANG9K and not self._fcsp_probe_attempted:
+            try:
+                if self._probe_fcsp_handshake():
+                    self._emit(
+                        EventLog(
+                            "info",
+                            "Optimized protocol selected; FCSP handshake succeeded and MSP compatibility path remains available.",
+                            source="fcsp",
+                        )
+                    )
+                else:
+                    self._emit(
+                        EventLog(
+                            "info",
+                            "Optimized protocol selected; MSP compatibility path remains active while FCSP probing is limited.",
+                            source="fcsp",
+                        )
+                    )
+            except Exception as exc:
+                self._emit(
+                    EventLog(
+                        "warning",
+                        f"FCSP handshake probe failed ({exc}); continuing with MSP compatibility path.",
+                        source="fcsp",
+                    )
+                )
 
     def _emit_passthrough_state(self) -> None:
         self._emit(
@@ -852,6 +1206,51 @@ class WorkerController:
             self._emit(EventLog("warning", message))
             return
 
+        if self._fcsp_control_op_ready(FcspControlOp.PT_ENTER, allow_fallback=True):
+            transition_start = perf_counter()
+            response_data = self._send_fcsp_control_checked(
+                FcspControlOp.PT_ENTER,
+                bytes([motor_index & 0xFF]),
+                timeout=0.8,
+            )
+            transition_ms = (perf_counter() - transition_start) * 1000.0
+            if len(response_data) < 1:
+                raise RuntimeError("PT_ENTER response missing esc_count")
+            esc_count = int(response_data[0])
+            self._passthrough_active = esc_count > 0
+            self._passthrough_motor = motor_index
+            self._esc_count = esc_count
+            if self._passthrough_active:
+                self._dshot_speeds = [0] * self._motor_count
+                self._last_decoded_settings = None
+                self._last_settings_motor = None
+            self._emit_passthrough_state()
+            if self._passthrough_active:
+                self._emit(EventLog("info", f"Passthrough active on motor {motor_index}; ESC count={esc_count}"))
+                self._emit(
+                    EventLog(
+                        "info",
+                        (
+                            f"ESC transition timing: switched to ESC serial on motor {motor_index} "
+                            f"in {transition_ms:.1f} ms (ESC count={esc_count})"
+                        ),
+                        source="esc",
+                    )
+                )
+            else:
+                self._emit(EventError(message="Passthrough did not activate (ESC count=0)"))
+                self._emit(
+                    EventLog(
+                        "warning",
+                        (
+                            f"ESC transition timing: serial handoff attempt on motor {motor_index} "
+                            f"did not activate in {transition_ms:.1f} ms"
+                        ),
+                        source="esc",
+                    )
+                )
+            return
+
         transition_start = perf_counter()
         response = self._send_msp_logged(
             MSP_SET_PASSTHROUGH,
@@ -898,6 +1297,25 @@ class WorkerController:
     def _handle_exit_passthrough(self) -> None:
         if not self._require_msp_client():
             return
+        if self._fcsp_control_op_ready(FcspControlOp.PT_EXIT, allow_fallback=True):
+            transition_start = perf_counter()
+            self._send_fcsp_control_checked(FcspControlOp.PT_EXIT, timeout=0.8)
+            transition_ms = (perf_counter() - transition_start) * 1000.0
+            self._passthrough_active = False
+            self._esc_count = 0
+            self._dshot_speeds = [0] * self._motor_count
+            self._last_decoded_settings = None
+            self._last_settings_motor = None
+            self._emit_passthrough_state()
+            self._emit(EventLog("info", "Passthrough exit requested"))
+            self._emit(
+                EventLog(
+                    "info",
+                    f"ESC transition timing: switched from ESC serial back to DSHOT in {transition_ms:.1f} ms",
+                    source="esc",
+                )
+            )
+            return
         transition_start = perf_counter()
         self._send_msp_logged(
             MSP_SET_PASSTHROUGH,
@@ -930,6 +1348,23 @@ class WorkerController:
             message = f"Invalid motor index {motor_index}; expected 0..{self._motor_count - 1}"
             self._emit(EventError(message=message))
             self._emit(EventLog("warning", message))
+            return
+
+        if self._fcsp_control_op_ready(FcspControlOp.ESC_SCAN, allow_fallback=True):
+            response_data = self._send_fcsp_control_checked(
+                FcspControlOp.ESC_SCAN,
+                bytes([motor_index & 0xFF]),
+                timeout=0.8,
+            )
+            if len(response_data) < 1:
+                raise RuntimeError("ESC_SCAN response missing esc_count")
+            esc_count = int(response_data[0])
+            self._passthrough_active = esc_count > 0
+            self._passthrough_motor = motor_index
+            self._esc_count = esc_count
+            self._emit_passthrough_state()
+            self._emit(EventEscScanResult(esc_count=esc_count, motor_index=motor_index))
+            self._emit(EventLog("info", f"ESC scan complete on motor {motor_index}: count={esc_count}"))
             return
 
         response = self._send_msp_logged(
@@ -968,6 +1403,17 @@ class WorkerController:
             )
             return
 
+        if self._fcsp_control_op_ready(FcspControlOp.SET_MOTOR_SPEED, allow_fallback=True):
+            payload = bytes([motor_index & 0xFF]) + int(speed).to_bytes(2, "big")
+            self._send_fcsp_control_checked(
+                FcspControlOp.SET_MOTOR_SPEED,
+                payload,
+                timeout=0.5,
+            )
+            self._dshot_speeds[motor_index] = speed
+            self._emit(EventLog("info", f"DSHOT speed set: motor {motor_index} -> {speed}", source="esc"))
+            return
+
         self._dshot_speeds[motor_index] = speed
         payload = self._build_motor_payload(self._dshot_speeds)
         self._send_msp_logged(
@@ -978,6 +1424,46 @@ class WorkerController:
             description=f"set motor {motor_index} speed={speed}",
         )
         self._emit(EventLog("info", f"DSHOT speed set: motor {motor_index} -> {speed}", source="esc"))
+
+    def _handle_get_fcsp_link_status(self) -> None:
+        if not self._require_msp_client():
+            return
+        if not self._ensure_fcsp_control_ready():
+            self._emit(
+                EventLog(
+                    "warning",
+                    "FCSP link status unavailable while optimized FCSP control path is inactive.",
+                    source="fcsp",
+                )
+            )
+            return
+        if not self._fcsp_op_is_advertised(FcspControlOp.GET_LINK_STATUS):
+            self._emit(
+                EventLog(
+                    "warning",
+                    "FCSP op GET_LINK_STATUS not advertised by peer capabilities; no fallback path available.",
+                    source="fcsp",
+                )
+            )
+            return
+
+        response_data = self._send_fcsp_control_checked(
+            FcspControlOp.GET_LINK_STATUS,
+            timeout=0.8,
+        )
+        if len(response_data) < 6:
+            raise RuntimeError("GET_LINK_STATUS response too short")
+        flags = int.from_bytes(response_data[0:2], "big")
+        rx_drops = int.from_bytes(response_data[2:4], "big")
+        crc_err = int.from_bytes(response_data[4:6], "big")
+        self._emit(EventFcspLinkStatus(flags=flags, rx_drops=rx_drops, crc_err=crc_err))
+        self._emit(
+            EventLog(
+                "info",
+                f"FCSP link status: flags=0x{flags:04X} rx_drops={rx_drops} crc_err={crc_err}",
+                source="fcsp",
+            )
+        )
 
     def _handle_read_fourway_identity(self) -> None:
         if not self._require_msp_client():
@@ -1065,14 +1551,49 @@ class WorkerController:
         if not self._require_msp_client():
             return
 
+        motor_index = int(command.motor_index)
+        if not (0 <= motor_index < self._motor_count):
+            message = f"Invalid motor index {motor_index}; expected 0..{self._motor_count - 1}"
+            self._emit(EventError(message=message))
+            self._emit(EventLog("warning", message))
+            return
+
+        length = max(1, min(255, int(command.length)))
+        address = max(0, int(command.address))
+
+        if self._fcsp_block_op_ready(
+            FcspControlOp.READ_BLOCK,
+            int(FcspAddressSpace.ESC_EEPROM),
+            allow_fallback=True,
+        ):
+            response_data = self._send_fcsp_control_checked(
+                FcspControlOp.READ_BLOCK,
+                build_read_block_payload(int(FcspAddressSpace.ESC_EEPROM), address, length),
+                timeout=0.9,
+            )
+            if len(response_data) < 2:
+                raise RuntimeError("READ_BLOCK response too short")
+            read_len = int.from_bytes(response_data[:2], "big")
+            params = bytes(response_data[2:])
+            if len(params) != read_len:
+                raise RuntimeError(
+                    f"READ_BLOCK length mismatch: expected {read_len} byte(s), received {len(params)}"
+                )
+            effective_motor = self._passthrough_motor if self._passthrough_active else motor_index
+            self._last_decoded_settings = decode_settings_payload(params, start_address=address)
+            self._last_settings_motor = effective_motor
+            self._emit(EventSettingsLoaded(data=params, address=address, motor_index=effective_motor))
+            self._emit(
+                EventLog(
+                    "info",
+                    f"Read settings via FCSP READ_BLOCK: {len(params)} byte(s) @ 0x{address:04X}",
+                    source="fcsp",
+                )
+            )
+            return
+
         auto_entered = False
         if not self._passthrough_active:
-            motor_index = int(command.motor_index)
-            if not (0 <= motor_index < self._motor_count):
-                message = f"Invalid motor index {motor_index}; expected 0..{self._motor_count - 1}"
-                self._emit(EventError(message=message))
-                self._emit(EventLog("warning", message))
-                return
             self._handle_enter_passthrough(CommandEnterPassthrough(motor_index=motor_index))
             auto_entered = True
 
@@ -1098,8 +1619,6 @@ class WorkerController:
             except Exception as exc:
                 self._emit(EventLog("warning", f"4-way identity bootstrap failed before settings read: {exc}", source="4way"))
 
-        length = max(1, min(255, int(command.length)))
-        address = max(0, int(command.address))
         response = self._send_fourway_logged(
             FOURWAY_CMDS["read_eeprom"],
             address=address,
@@ -1115,13 +1634,6 @@ class WorkerController:
     def _handle_write_settings(self, command: CommandWriteSettings) -> None:
         if not self._require_msp_client():
             return
-        if not self._require_passthrough():
-            return
-        if self._fourway_client is None:
-            message = "4-way client not initialized"
-            self._emit(EventError(message=message))
-            self._emit(EventLog("error", message))
-            return
 
         address = max(0, int(command.address))
         data = bytes(command.data)
@@ -1129,6 +1641,78 @@ class WorkerController:
             message = f"Invalid settings write length {len(data)}; expected 1..256"
             self._emit(EventError(message=message))
             self._emit(EventLog("warning", message))
+            return
+
+        if self._fcsp_block_op_ready(
+            FcspControlOp.WRITE_BLOCK,
+            int(FcspAddressSpace.ESC_EEPROM),
+            allow_fallback=True,
+        ):
+            response_data = self._send_fcsp_control_checked(
+                FcspControlOp.WRITE_BLOCK,
+                build_write_block_payload(int(FcspAddressSpace.ESC_EEPROM), address, data),
+                timeout=0.9,
+            )
+            if len(response_data) < 2:
+                raise RuntimeError("WRITE_BLOCK response too short")
+            bytes_written = int.from_bytes(response_data[:2], "big")
+            if bytes_written != len(data):
+                raise RuntimeError(
+                    f"WRITE_BLOCK short write: expected {len(data)} byte(s), wrote {bytes_written}"
+                )
+
+            verified = False
+            readback = b""
+            if command.verify_readback:
+                verify_data = self._send_fcsp_control_checked(
+                    FcspControlOp.READ_BLOCK,
+                    build_read_block_payload(int(FcspAddressSpace.ESC_EEPROM), address, len(data)),
+                    timeout=0.9,
+                )
+                if len(verify_data) < 2:
+                    raise RuntimeError("READ_BLOCK verify response too short")
+                verify_len = int.from_bytes(verify_data[:2], "big")
+                readback = bytes(verify_data[2:])
+                if len(readback) != verify_len:
+                    raise RuntimeError(
+                        f"READ_BLOCK verify length mismatch: expected {verify_len} byte(s), received {len(readback)}"
+                    )
+                verified = readback == data
+                if not verified:
+                    message = (
+                        f"Settings verification failed @ 0x{address:04X}: "
+                        f"wrote {len(data)} byte(s), read back {len(readback)} byte(s)"
+                    )
+                    self._emit(EventError(message=message))
+                    self._emit(EventLog("error", message))
+                    return
+
+            active_motor = (
+                self._passthrough_motor
+                if self._passthrough_active
+                else (self._last_settings_motor if self._last_settings_motor is not None else 0)
+            )
+            self._emit(EventSettingsWritten(address=address, size=len(data), verified=verified))
+            if readback:
+                self._last_decoded_settings = decode_settings_payload(readback, start_address=address)
+                self._last_settings_motor = active_motor
+                self._emit(EventSettingsLoaded(data=readback, address=address, motor_index=active_motor))
+            self._emit(
+                EventLog(
+                    "info",
+                    f"Wrote settings via FCSP WRITE_BLOCK: {len(data)} byte(s) @ 0x{address:04X}"
+                    + (" (verified)" if verified else ""),
+                    source="fcsp",
+                )
+            )
+            return
+
+        if not self._require_passthrough():
+            return
+        if self._fourway_client is None:
+            message = "4-way client not initialized"
+            self._emit(EventError(message=message))
+            self._emit(EventLog("error", message))
             return
 
         self._send_fourway_logged(
@@ -1479,6 +2063,10 @@ class WorkerController:
                 self._handle_connect(command)
                 continue
 
+            if isinstance(command, _CommandPostConnectSetup):
+                self._handle_post_connect_setup(command)
+                continue
+
             if isinstance(command, CommandDisconnect):
                 self._disconnect_transport(command.reason)
                 continue
@@ -1525,6 +2113,17 @@ class WorkerController:
                     self._emit(EventLog("error", msg))
                     if self._is_transport_fatal(exc):
                         self._disconnect_transport(f"Transport lost during motor speed set: {exc}")
+                continue
+
+            if isinstance(command, CommandGetFcspLinkStatus):
+                try:
+                    self._handle_get_fcsp_link_status()
+                except Exception as exc:
+                    msg = f"FCSP link status read failed: {exc}"
+                    self._emit(EventError(message=msg))
+                    self._emit(EventLog("error", msg))
+                    if self._is_transport_fatal(exc):
+                        self._disconnect_transport(f"Transport lost during FCSP link status read: {exc}")
                 continue
 
             if isinstance(command, CommandReadFourWayIdentity):

@@ -72,7 +72,9 @@ Deliver a full Python ImGui ESC-configurator replacement first, then migrate the
   - speed clamped to `0..2047`
   - invalid motor index rejected
   - speed writes blocked while passthrough is active
-- Python unit test suite status: full `python/unitTests` currently passing (`59 passed` at last full run in this session).
+- Python FCSP codec is now aligned with the canonical spec in `rt-fc-offloader/docs/FCSP_PROTOCOL.md` for discovery and block helpers.
+- Optimized protocol mode now performs spec-aligned FCSP discovery without regressing the MSP fallback path.
+- Python unit test suite status: full `unitTests` currently passing (`181 passed` at last full run in this session).
 
 ## Where to look
 

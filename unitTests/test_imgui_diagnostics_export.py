@@ -22,6 +22,20 @@ def test_export_diagnostics_bundle_writes_expected_files(tmp_path: Path) -> None
     state.msp_success_percent = 95.238
     state.msp_error_percent = 4.762
     state.msp_messages_per_second = 31.5
+    state.connection_protocol_mode = "optimized_tang9k"
+    state.fcsp_connected_peer = "Tang9k FC"
+    state.fcsp_cap_esc_count = 4
+    state.fcsp_cap_feature_flags = 0x00000003
+    state.fcsp_cap_descriptions = ["Supported ops bitmap: FF FF", "DSHOT motor count: 4"]
+    state.fcsp_supported_ops_bitmap_hex = "FF FF"
+    state.fcsp_supported_spaces_bitmap_hex = "FF"
+    state.fcsp_supports_get_link_status = True
+    state.fcsp_supports_read_block = True
+    state.fcsp_supports_write_block = True
+    state.fcsp_supports_esc_eeprom_space = True
+    state.fcsp_link_flags = 0x0003
+    state.fcsp_link_rx_drops = 5
+    state.fcsp_link_crc_err = 2
 
     bundle_dir = export_diagnostics_bundle(state, output_root=str(tmp_path))
 
@@ -50,6 +64,21 @@ def test_export_diagnostics_bundle_writes_expected_files(tmp_path: Path) -> None
     assert metadata["motor_count"] == 8
     assert metadata["msp_total"] == 42
     assert metadata["msp_errors"] == 2
+    assert metadata["connection_protocol_mode"] == "optimized_tang9k"
+    assert metadata["fcsp_connected_peer"] == "Tang9k FC"
+    assert metadata["fcsp_cap_esc_count"] == 4
+    assert metadata["fcsp_cap_feature_flags"] == 0x00000003
+    assert metadata["fcsp_capability_entry_count"] == 2
+    assert metadata["fcsp_capability_descriptions"][0].startswith("Supported ops bitmap")
+    assert metadata["fcsp_supported_ops_bitmap_hex"] == "FF FF"
+    assert metadata["fcsp_supported_spaces_bitmap_hex"] == "FF"
+    assert metadata["fcsp_supports_get_link_status"] is True
+    assert metadata["fcsp_supports_read_block"] is True
+    assert metadata["fcsp_supports_write_block"] is True
+    assert metadata["fcsp_supports_esc_eeprom_space"] is True
+    assert metadata["fcsp_link_flags"] == 0x0003
+    assert metadata["fcsp_link_rx_drops"] == 5
+    assert metadata["fcsp_link_crc_err"] == 2
 
 
 def test_export_diagnostics_bundle_includes_decoded_settings_and_flash_state(tmp_path: Path) -> None:

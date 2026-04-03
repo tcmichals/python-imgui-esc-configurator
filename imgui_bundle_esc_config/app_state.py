@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 import re
 
 from MSP import SerialPortDescriptor
+from comm_proto.fcsp import FcspAddressSpace, FcspControlOp, format_capability_tlv, summarize_capability_tlvs
 from comm_proto.tang9k_stream import (
     Tang9kChannel,
     decode_fc_log_event,
@@ -26,6 +27,8 @@ from .worker import (
     EventConnected,
     EventDisconnected,
     EventError,
+    EventFcspCapabilities,
+    EventFcspLinkStatus,
     EventAllEscsFlashed,
     EventFirmwareDownloaded,
     EventFirmwareFlashed,
@@ -83,6 +86,19 @@ class AppState:
     connected: bool = False
     connected_port: str = ""
     connection_protocol_mode: str = "msp"
+    fcsp_connected_peer: str = ""
+    fcsp_cap_esc_count: int | None = None
+    fcsp_cap_feature_flags: int | None = None
+    fcsp_cap_descriptions: list[str] = field(default_factory=list)
+    fcsp_supported_ops_bitmap_hex: str = ""
+    fcsp_supported_spaces_bitmap_hex: str = ""
+    fcsp_supports_get_link_status: bool | None = None
+    fcsp_supports_read_block: bool | None = None
+    fcsp_supports_write_block: bool | None = None
+    fcsp_supports_esc_eeprom_space: bool | None = None
+    fcsp_link_flags: int | None = None
+    fcsp_link_rx_drops: int | None = None
+    fcsp_link_crc_err: int | None = None
     motor_count: int = 4
     selected_motor_index: int = 0
     dshot_speed_values: list[int] = field(default_factory=lambda: [DSHOT_UI_MIN, DSHOT_UI_MIN, DSHOT_UI_MIN, DSHOT_UI_MIN])
@@ -391,6 +407,18 @@ class AppState:
             current = current[:safe_count]
         self.dshot_speed_values = current
 
+    def _fcsp_bitmap_has_index(self, bitmap: bytes, index: int) -> bool:
+        if index < 0:
+            return False
+        byte_index = index // 8
+        if byte_index >= len(bitmap):
+            return False
+        byte = int(bitmap[byte_index])
+        bit_in_byte = index % 8
+        lsb_first = bool(byte & (1 << bit_in_byte))
+        msb_first = bool(byte & (1 << (7 - bit_in_byte)))
+        return lsb_first or msb_first
+
     def apply_event(self, event: object) -> None:
         if isinstance(event, EventPortsUpdated):
             self.available_ports = list(event.ports)
@@ -411,6 +439,19 @@ class AppState:
         if isinstance(event, EventDisconnected):
             self.connected = False
             self.connected_port = ""
+            self.fcsp_connected_peer = ""
+            self.fcsp_cap_esc_count = None
+            self.fcsp_cap_feature_flags = None
+            self.fcsp_cap_descriptions = []
+            self.fcsp_supported_ops_bitmap_hex = ""
+            self.fcsp_supported_spaces_bitmap_hex = ""
+            self.fcsp_supports_get_link_status = None
+            self.fcsp_supports_read_block = None
+            self.fcsp_supports_write_block = None
+            self.fcsp_supports_esc_eeprom_space = None
+            self.fcsp_link_flags = None
+            self.fcsp_link_rx_drops = None
+            self.fcsp_link_crc_err = None
             self.motor_count = 4
             self.selected_motor_index = 0
             self.dshot_speed_values = [DSHOT_UI_MIN, DSHOT_UI_MIN, DSHOT_UI_MIN, DSHOT_UI_MIN]
@@ -461,6 +502,44 @@ class AppState:
             self.msp_success_percent = float(event.success_percent)
             self.msp_error_percent = float(event.error_percent)
             self.msp_messages_per_second = float(event.messages_per_second)
+            return
+
+        if isinstance(event, EventFcspCapabilities):
+            self.fcsp_connected_peer = event.peer_name
+            self.fcsp_cap_esc_count = event.esc_count
+            self.fcsp_cap_feature_flags = event.feature_flags
+            self.fcsp_cap_descriptions = [format_capability_tlv(entry) for entry in event.tlvs]
+            cap_summary = summarize_capability_tlvs(list(event.tlvs))
+            ops_bitmap = bytes(cap_summary.supported_ops_bitmap or b"")
+            spaces_bitmap = bytes(cap_summary.supported_spaces_bitmap or b"")
+            self.fcsp_supported_ops_bitmap_hex = ops_bitmap.hex(" ").upper() if ops_bitmap else ""
+            self.fcsp_supported_spaces_bitmap_hex = spaces_bitmap.hex(" ").upper() if spaces_bitmap else ""
+            if ops_bitmap:
+                self.fcsp_supports_get_link_status = self._fcsp_bitmap_has_index(ops_bitmap, int(FcspControlOp.GET_LINK_STATUS))
+                self.fcsp_supports_read_block = self._fcsp_bitmap_has_index(ops_bitmap, int(FcspControlOp.READ_BLOCK))
+                self.fcsp_supports_write_block = self._fcsp_bitmap_has_index(ops_bitmap, int(FcspControlOp.WRITE_BLOCK))
+            else:
+                self.fcsp_supports_get_link_status = None
+                self.fcsp_supports_read_block = None
+                self.fcsp_supports_write_block = None
+            if spaces_bitmap:
+                self.fcsp_supports_esc_eeprom_space = self._fcsp_bitmap_has_index(spaces_bitmap, int(FcspAddressSpace.ESC_EEPROM))
+            else:
+                self.fcsp_supports_esc_eeprom_space = None
+            if event.peer_name:
+                self.status_text = f"FCSP ready: {event.peer_name}"
+            elif event.tlvs:
+                self.status_text = f"FCSP ready: {len(event.tlvs)} capability TLVs"
+            return
+
+        if isinstance(event, EventFcspLinkStatus):
+            self.fcsp_link_flags = int(event.flags)
+            self.fcsp_link_rx_drops = int(event.rx_drops)
+            self.fcsp_link_crc_err = int(event.crc_err)
+            self.status_text = (
+                f"FCSP link: flags=0x{self.fcsp_link_flags:04X} "
+                f"drops={self.fcsp_link_rx_drops} crc={self.fcsp_link_crc_err}"
+            )
             return
 
         if isinstance(event, EventMotorCount):
