@@ -19,6 +19,7 @@ env/
 # Logs and runtime artifacts
 *.log
 imgui_bundle_esc_config/logs/
+imgui_bundle_esc_config/imgui.ini
 
 # OS/editor files
 .DS_Store
