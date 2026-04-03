@@ -96,6 +96,9 @@ class AppState:
     fcsp_supports_read_block: bool | None = None
     fcsp_supports_write_block: bool | None = None
     fcsp_supports_esc_eeprom_space: bool | None = None
+    fcsp_supports_flash_space: bool | None = None
+    fcsp_supports_pwm_io_space: bool | None = None
+    fcsp_supports_dshot_io_space: bool | None = None
     fcsp_link_flags: int | None = None
     fcsp_link_rx_drops: int | None = None
     fcsp_link_crc_err: int | None = None
@@ -449,6 +452,9 @@ class AppState:
             self.fcsp_supports_read_block = None
             self.fcsp_supports_write_block = None
             self.fcsp_supports_esc_eeprom_space = None
+            self.fcsp_supports_flash_space = None
+            self.fcsp_supports_pwm_io_space = None
+            self.fcsp_supports_dshot_io_space = None
             self.fcsp_link_flags = None
             self.fcsp_link_rx_drops = None
             self.fcsp_link_crc_err = None
@@ -524,8 +530,14 @@ class AppState:
                 self.fcsp_supports_write_block = None
             if spaces_bitmap:
                 self.fcsp_supports_esc_eeprom_space = self._fcsp_bitmap_has_index(spaces_bitmap, int(FcspAddressSpace.ESC_EEPROM))
+                self.fcsp_supports_flash_space = self._fcsp_bitmap_has_index(spaces_bitmap, int(FcspAddressSpace.FLASH))
+                self.fcsp_supports_pwm_io_space = self._fcsp_bitmap_has_index(spaces_bitmap, int(FcspAddressSpace.PWM_IO))
+                self.fcsp_supports_dshot_io_space = self._fcsp_bitmap_has_index(spaces_bitmap, int(FcspAddressSpace.DSHOT_IO))
             else:
                 self.fcsp_supports_esc_eeprom_space = None
+                self.fcsp_supports_flash_space = None
+                self.fcsp_supports_pwm_io_space = None
+                self.fcsp_supports_dshot_io_space = None
             if event.peer_name:
                 self.status_text = f"FCSP ready: {event.peer_name}"
             elif event.tlvs:

@@ -197,9 +197,27 @@ def render_connection_panel(state: AppState, controller: WorkerController) -> No
             "no" if state.fcsp_supports_esc_eeprom_space is False else
             "<unknown>"
         )
+        support_flash = (
+            "yes" if state.fcsp_supports_flash_space is True else
+            "no" if state.fcsp_supports_flash_space is False else
+            "<unknown>"
+        )
+        support_pwm_io = (
+            "yes" if state.fcsp_supports_pwm_io_space is True else
+            "no" if state.fcsp_supports_pwm_io_space is False else
+            "<unknown>"
+        )
+        support_dshot_io = (
+            "yes" if state.fcsp_supports_dshot_io_space is True else
+            "no" if state.fcsp_supports_dshot_io_space is False else
+            "<unknown>"
+        )
         imgui.text(
             f"Support: GET_LINK_STATUS={support_get_link} READ_BLOCK={support_read_block} "
             f"WRITE_BLOCK={support_write_block} ESC_EEPROM={support_esc_eeprom}"
+        )
+        imgui.text(
+            f"Spaces: FLASH={support_flash} PWM_IO={support_pwm_io} DSHOT_IO={support_dshot_io}"
         )
         link_flags_text = f"0x{state.fcsp_link_flags:04X}" if state.fcsp_link_flags is not None else "<n/a>"
         link_drops_text = str(state.fcsp_link_rx_drops) if state.fcsp_link_rx_drops is not None else "<n/a>"

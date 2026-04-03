@@ -33,6 +33,9 @@ def test_export_diagnostics_bundle_writes_expected_files(tmp_path: Path) -> None
     state.fcsp_supports_read_block = True
     state.fcsp_supports_write_block = True
     state.fcsp_supports_esc_eeprom_space = True
+    state.fcsp_supports_flash_space = True
+    state.fcsp_supports_pwm_io_space = True
+    state.fcsp_supports_dshot_io_space = False
     state.fcsp_link_flags = 0x0003
     state.fcsp_link_rx_drops = 5
     state.fcsp_link_crc_err = 2
@@ -76,6 +79,9 @@ def test_export_diagnostics_bundle_writes_expected_files(tmp_path: Path) -> None
     assert metadata["fcsp_supports_read_block"] is True
     assert metadata["fcsp_supports_write_block"] is True
     assert metadata["fcsp_supports_esc_eeprom_space"] is True
+    assert metadata["fcsp_supports_flash_space"] is True
+    assert metadata["fcsp_supports_pwm_io_space"] is True
+    assert metadata["fcsp_supports_dshot_io_space"] is False
     assert metadata["fcsp_link_flags"] == 0x0003
     assert metadata["fcsp_link_rx_drops"] == 5
     assert metadata["fcsp_link_crc_err"] == 2

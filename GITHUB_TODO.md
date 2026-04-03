@@ -69,4 +69,5 @@
 - [x] Added FCSP settings `READ_BLOCK` / `WRITE_BLOCK` path with capability-gated space checks and compatibility fallback
 - [x] Added FCSP capability/link snapshot in diagnostics panel and exported metadata bundle
 - [x] Added decoded FCSP op/space support flags in state + diagnostics export and gated link-status refresh action in UI
+- [x] Expanded decoded FCSP space support visibility (FLASH / PWM_IO / DSHOT_IO) in state, UI summary, and diagnostics export
 - [x] Re-verified full `unitTests` suite (`181 passed`)

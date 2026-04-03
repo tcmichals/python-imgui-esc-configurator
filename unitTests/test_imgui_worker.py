@@ -2021,18 +2021,21 @@ def test_app_state_decodes_fcsp_supported_op_and_space_flags() -> None:
             feature_flags=1,
             tlvs=(
                 FcspTlv(tlv_type=FCSP_CAP_TLV_SUPPORTED_OPS, value=b"\xFF\xFF\xFF"),
-                FcspTlv(tlv_type=FCSP_CAP_TLV_SUPPORTED_SPACES, value=b"\xFF"),
+                FcspTlv(tlv_type=FCSP_CAP_TLV_SUPPORTED_SPACES, value=b"\x3C\x00\x03"),
                 FcspTlv(tlv_type=FCSP_CAP_TLV_DSHOT_MOTOR_COUNT, value=b"\x00\x04"),
             ),
         )
     )
 
     assert state.fcsp_supported_ops_bitmap_hex == "FF FF FF"
-    assert state.fcsp_supported_spaces_bitmap_hex == "FF"
+    assert state.fcsp_supported_spaces_bitmap_hex == "3C 00 03"
     assert state.fcsp_supports_get_link_status is True
     assert state.fcsp_supports_read_block is True
     assert state.fcsp_supports_write_block is True
     assert state.fcsp_supports_esc_eeprom_space is True
+    assert state.fcsp_supports_flash_space is True
+    assert state.fcsp_supports_pwm_io_space is True
+    assert state.fcsp_supports_dshot_io_space is True
 
 
 def test_app_state_records_fcsp_link_status() -> None:
