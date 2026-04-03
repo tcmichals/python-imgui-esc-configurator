@@ -59,6 +59,11 @@ Protocol strategy for this phase:
 - **MSP path (current):** used to validate GUI behavior, workflow parity, and ESC feature coverage quickly.
 - **FCSP path (target):** move runtime traffic to **FCSP/1** (Flight Controller Switch Protocol) for better determinism and throughput, while keeping MSP compatibility where it is still useful.
 
+Transport scope note:
+
+- FCSP over SPI is scoped to the **offloader ↔ flight-controller** link.
+- The Python GUI/worker path stays feature-intent driven and should not depend on direct SPI details.
+
 Canonical protocol spec source:
 
 - `rt-fc-offloader/docs/FCSP_PROTOCOL.md` (single source of truth; no duplicate spec copies)
