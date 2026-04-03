@@ -29,6 +29,11 @@ A multi-platform demonstration of **hardware offloading techniques** for real-ti
 - **Primary roadmap:** `ROADMAP.md`
 - Python full-replacement product phases: `python/imgui_bundle_esc_config/DESIGN_REQUIREMENTS.md`
 
+## Repository requirements and GitHub TODO
+
+- `REQUIREMENTS.md` — clear Python-repo requirements and constraints
+- `GITHUB_TODO.md` — active GitHub task list for this repository
+
 ## Project objective
 
 Primary objective for this repository:

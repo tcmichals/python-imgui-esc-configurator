@@ -29,6 +29,21 @@ from .tang9k_stream import (
     format_fc_log_event,
     format_frame_trace,
 )
+from .fcsp import (
+    FcspChannel,
+    FcspControlOp,
+    FcspFlag,
+    FcspFrame,
+    FcspResult,
+    FcspStreamParser,
+    FcspTlv,
+    build_control_payload,
+    decode_frame as decode_fcsp_frame,
+    decode_tlvs,
+    encode_frame as encode_fcsp_frame,
+    encode_tlvs,
+    parse_control_payload,
+)
 
 
 class ContentType(IntEnum):
