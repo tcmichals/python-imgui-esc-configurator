@@ -17,14 +17,14 @@ if __package__ in {None, ""}:
     from imgui_bundle_esc_config.persistence import load_prefs, save_prefs
     from imgui_bundle_esc_config.runtime_logging import configure_runtime_logging, get_logger
     from imgui_bundle_esc_config.ui_main import drain_worker_events, render_main_window
-    from imgui_bundle_esc_config.worker import CommandRefreshFirmwareCatalog, CommandRefreshPorts, EventFirmwareCatalogLoaded, WorkerController
+    from imgui_bundle_esc_config.worker import CommandRefreshFirmwareCatalog, CommandRefreshPorts, EventFirmwareCatalogLoaded, EventLog, WorkerController
 else:
     from . import APP_VERSION
     from .app_state import create_app_state
     from .persistence import load_prefs, save_prefs
     from .runtime_logging import configure_runtime_logging, get_logger
     from .ui_main import drain_worker_events, render_main_window
-    from .worker import CommandRefreshFirmwareCatalog, CommandRefreshPorts, EventFirmwareCatalogLoaded, WorkerController
+    from .worker import CommandRefreshFirmwareCatalog, CommandRefreshPorts, EventFirmwareCatalogLoaded, EventLog, WorkerController
 
 
 def main() -> None:
@@ -36,9 +36,19 @@ def main() -> None:
     worker = WorkerController(msp_probe_on_connect=True, esc_stabilization_delay_s=1.2)
 
     # Eagerly populate catalog from disk cache so UI shows releases immediately.
-    cached_snapshot = worker._firmware_catalog_client.load_catalog_snapshot()
+    cached_snapshot = worker.load_cached_firmware_catalog_snapshot()
     if cached_snapshot is not None:
         state.apply_event(EventFirmwareCatalogLoaded(snapshot=cached_snapshot, from_cache=True))
+    cache_load_error = worker.get_cached_firmware_catalog_load_error()
+    if cache_load_error:
+        get_logger("app").warning("Firmware catalog cache load failed: %s", cache_load_error)
+        state.apply_event(
+            EventLog(
+                level="warning",
+                message="Firmware catalog cache was corrupt/unreadable and has been quarantined; a live refresh will rebuild it.",
+                source="firmware",
+            )
+        )
 
     worker.start()
     worker.enqueue(CommandRefreshPorts())

@@ -225,9 +225,31 @@ def test_load_catalog_snapshot_returns_none_when_no_file() -> None:
 def test_load_catalog_snapshot_returns_none_on_corrupt_json() -> None:
     import pathlib
     with tempfile.TemporaryDirectory() as temp_dir:
-        pathlib.Path(temp_dir, "catalog_snapshot.json").write_text("{ invalid json !!!", encoding="utf-8")
+        snapshot_path = pathlib.Path(temp_dir, "catalog_snapshot.json")
+        snapshot_path.write_text("{ invalid json !!!", encoding="utf-8")
         client = FirmwareCatalogClient(fetch_json=lambda _url: [], cache_dir=temp_dir)
         assert client.load_catalog_snapshot() is None
+        assert client.last_snapshot_load_error
+        quarantined = list(pathlib.Path(temp_dir).glob("catalog_snapshot.corrupt.*.json"))
+        assert quarantined, "Corrupt snapshot should be quarantined for recovery/debugging"
+        assert snapshot_path.exists() is False
+
+
+def test_catalog_refresh_reraises_when_offline_and_only_corrupt_cache_exists() -> None:
+    import pathlib
+    with tempfile.TemporaryDirectory() as temp_dir:
+        pathlib.Path(temp_dir, "catalog_snapshot.json").write_text("{ invalid json !!!", encoding="utf-8")
+
+        def bad_fetch(_url: str) -> object:
+            raise OSError("offline")
+
+        client = FirmwareCatalogClient(fetch_json=bad_fetch, cache_dir=temp_dir)
+
+        import pytest
+        with pytest.raises(OSError, match="offline"):
+            client.refresh_catalog()
+        assert client.last_refresh_used_cache is False
+        assert client.last_snapshot_load_error
 
 
 def test_save_and_load_catalog_snapshot_round_trip() -> None:

@@ -20,18 +20,20 @@ from .firmware_catalog import FirmwareCatalogSnapshot, FirmwareRelease, describe
 from .runtime_logging import log_protocol_trace, log_ui_message
 from .settings_decoder import DecodedSettings, decode_settings_payload, get_editable_field_values
 
-from .worker import (
-    EventFourWayIdentity,
-    EventEscScanResult,
-    EventFirmwareCatalogLoaded,
+from .backend_models import (
+    EventAllEscsFlashed,
+    EventBlockRead,
+    EventBlockWritten,
     EventConnected,
     EventDisconnected,
     EventError,
+    EventEscScanResult,
     EventFcspCapabilities,
     EventFcspLinkStatus,
-    EventAllEscsFlashed,
+    EventFirmwareCatalogLoaded,
     EventFirmwareDownloaded,
     EventFirmwareFlashed,
+    EventFourWayIdentity,
     EventLog,
     EventMspStats,
     EventMotorCount,
@@ -95,10 +97,21 @@ class AppState:
     fcsp_supports_get_link_status: bool | None = None
     fcsp_supports_read_block: bool | None = None
     fcsp_supports_write_block: bool | None = None
+    fcsp_supports_pt_enter: bool | None = None
+    fcsp_supports_pt_exit: bool | None = None
+    fcsp_supports_esc_scan: bool | None = None
+    fcsp_supports_set_motor_speed: bool | None = None
     fcsp_supports_esc_eeprom_space: bool | None = None
     fcsp_supports_flash_space: bool | None = None
     fcsp_supports_pwm_io_space: bool | None = None
     fcsp_supports_dshot_io_space: bool | None = None
+    block_read_space: int | None = None
+    block_read_address: int | None = None
+    block_read_data: bytes | None = None
+    block_write_space: int | None = None
+    block_write_address: int | None = None
+    block_write_size: int | None = None
+    block_write_verified: bool = False
     fcsp_link_flags: int | None = None
     fcsp_link_rx_drops: int | None = None
     fcsp_link_crc_err: int | None = None
@@ -247,6 +260,109 @@ class AppState:
         if decoded is None:
             return False
         return self.settings_edit_values != get_editable_field_values(decoded)
+
+    # ------------------------------------------------------------------
+    # FCSP capability-gated action availability
+    # Each property returns:
+    #   None  — caps not yet received; assume optimistic (no bitmap → permissive)
+    #   True  — capability explicitly advertised
+    #   False — capability explicitly absent from peer bitmap
+    # ------------------------------------------------------------------
+
+    def fcsp_settings_read_native_available(self) -> bool | None:
+        """True when READ_BLOCK + ESC_EEPROM are both advertised in peer caps."""
+        rb = self.fcsp_supports_read_block
+        ee = self.fcsp_supports_esc_eeprom_space
+        if rb is None or ee is None:
+            return None
+        return rb and ee
+
+    def fcsp_settings_write_native_available(self) -> bool | None:
+        """True when WRITE_BLOCK + ESC_EEPROM are both advertised in peer caps."""
+        wb = self.fcsp_supports_write_block
+        ee = self.fcsp_supports_esc_eeprom_space
+        if wb is None or ee is None:
+            return None
+        return wb and ee
+
+    def fcsp_passthrough_native_available(self) -> bool | None:
+        """True when PT_ENTER is explicitly advertised in peer caps."""
+        return self.fcsp_supports_pt_enter
+
+    def fcsp_motor_speed_native_available(self) -> bool | None:
+        """True when SET_MOTOR_SPEED is explicitly advertised in peer caps."""
+        return self.fcsp_supports_set_motor_speed
+
+    def fcsp_dshot_io_native_available(self) -> bool | None:
+        """True when READ_BLOCK + DSHOT_IO are both advertised in peer caps."""
+        rb = self.fcsp_supports_read_block
+        ds = self.fcsp_supports_dshot_io_space
+        if rb is None or ds is None:
+            return None
+        return rb and ds
+
+    def fcsp_pwm_io_native_available(self) -> bool | None:
+        """True when READ_BLOCK + PWM_IO are both advertised in peer caps."""
+        rb = self.fcsp_supports_read_block
+        pw = self.fcsp_supports_pwm_io_space
+        if rb is None or pw is None:
+            return None
+        return rb and pw
+
+    def fcsp_flash_native_available(self) -> bool | None:
+        """True when WRITE_BLOCK + FLASH space are both advertised — future firmware-flash via FCSP."""
+        wb = self.fcsp_supports_write_block
+        fl = self.fcsp_supports_flash_space
+        if wb is None or fl is None:
+            return None
+        return wb and fl
+
+    @staticmethod
+    def _fcsp_tri_state_label(value: bool | None) -> str:
+        if value is True:
+            return "yes"
+        if value is False:
+            return "no"
+        return "<unknown>"
+
+    def fcsp_capability_summary_line(self) -> str:
+        """Human-readable one-line FCSP capability summary for diagnostics/export."""
+        esc_text = str(self.fcsp_cap_esc_count) if self.fcsp_cap_esc_count is not None else "<n/a>"
+        flags_text = f"0x{self.fcsp_cap_feature_flags:X}" if self.fcsp_cap_feature_flags is not None else "<n/a>"
+        return (
+            f"peer={self.fcsp_connected_peer or '<unknown>'} "
+            f"caps={len(self.fcsp_cap_descriptions)} ESCs={esc_text} Flags={flags_text}"
+        )
+
+    def fcsp_native_paths_summary_line(self) -> str:
+        """Human-readable one-line summary of inferred FCSP native-path availability."""
+        return (
+            f"PT={self._fcsp_tri_state_label(self.fcsp_passthrough_native_available())} "
+            f"MOTOR={self._fcsp_tri_state_label(self.fcsp_motor_speed_native_available())} "
+            f"SETTINGS-R={self._fcsp_tri_state_label(self.fcsp_settings_read_native_available())} "
+            f"SETTINGS-W={self._fcsp_tri_state_label(self.fcsp_settings_write_native_available())} "
+            f"PWM_IO={self._fcsp_tri_state_label(self.fcsp_pwm_io_native_available())} "
+            f"DSHOT_IO={self._fcsp_tri_state_label(self.fcsp_dshot_io_native_available())} "
+            f"FLASH={self._fcsp_tri_state_label(self.fcsp_flash_native_available())}"
+        )
+
+    def fcsp_last_block_io_summary_line(self) -> str:
+        """Human-readable one-line summary of last FCSP generic block I/O activity."""
+        read_label = "none"
+        if self.block_read_data is not None:
+            read_label = (
+                f"read(space=0x{int(self.block_read_space or 0):02X},"
+                f"addr=0x{int(self.block_read_address or 0):04X},len={len(self.block_read_data)})"
+            )
+        write_label = "none"
+        if self.block_write_size is not None:
+            verify_label = "yes" if self.block_write_verified else "no"
+            write_label = (
+                f"write(space=0x{int(self.block_write_space or 0):02X},"
+                f"addr=0x{int(self.block_write_address or 0):04X},"
+                f"len={int(self.block_write_size)},verified={verify_label})"
+            )
+        return f"{read_label}; {write_label}"
 
     def firmware_sources(self) -> list[str]:
         if self.firmware_catalog is None:
@@ -451,10 +567,21 @@ class AppState:
             self.fcsp_supports_get_link_status = None
             self.fcsp_supports_read_block = None
             self.fcsp_supports_write_block = None
+            self.fcsp_supports_pt_enter = None
+            self.fcsp_supports_pt_exit = None
+            self.fcsp_supports_esc_scan = None
+            self.fcsp_supports_set_motor_speed = None
             self.fcsp_supports_esc_eeprom_space = None
             self.fcsp_supports_flash_space = None
             self.fcsp_supports_pwm_io_space = None
             self.fcsp_supports_dshot_io_space = None
+            self.block_read_space = None
+            self.block_read_address = None
+            self.block_read_data = None
+            self.block_write_space = None
+            self.block_write_address = None
+            self.block_write_size = None
+            self.block_write_verified = False
             self.fcsp_link_flags = None
             self.fcsp_link_rx_drops = None
             self.fcsp_link_crc_err = None
@@ -524,10 +651,18 @@ class AppState:
                 self.fcsp_supports_get_link_status = self._fcsp_bitmap_has_index(ops_bitmap, int(FcspControlOp.GET_LINK_STATUS))
                 self.fcsp_supports_read_block = self._fcsp_bitmap_has_index(ops_bitmap, int(FcspControlOp.READ_BLOCK))
                 self.fcsp_supports_write_block = self._fcsp_bitmap_has_index(ops_bitmap, int(FcspControlOp.WRITE_BLOCK))
+                self.fcsp_supports_pt_enter = self._fcsp_bitmap_has_index(ops_bitmap, int(FcspControlOp.PT_ENTER))
+                self.fcsp_supports_pt_exit = self._fcsp_bitmap_has_index(ops_bitmap, int(FcspControlOp.PT_EXIT))
+                self.fcsp_supports_esc_scan = self._fcsp_bitmap_has_index(ops_bitmap, int(FcspControlOp.ESC_SCAN))
+                self.fcsp_supports_set_motor_speed = self._fcsp_bitmap_has_index(ops_bitmap, int(FcspControlOp.SET_MOTOR_SPEED))
             else:
                 self.fcsp_supports_get_link_status = None
                 self.fcsp_supports_read_block = None
                 self.fcsp_supports_write_block = None
+                self.fcsp_supports_pt_enter = None
+                self.fcsp_supports_pt_exit = None
+                self.fcsp_supports_esc_scan = None
+                self.fcsp_supports_set_motor_speed = None
             if spaces_bitmap:
                 self.fcsp_supports_esc_eeprom_space = self._fcsp_bitmap_has_index(spaces_bitmap, int(FcspAddressSpace.ESC_EEPROM))
                 self.fcsp_supports_flash_space = self._fcsp_bitmap_has_index(spaces_bitmap, int(FcspAddressSpace.FLASH))
@@ -684,6 +819,28 @@ class AppState:
             self.settings_last_write_verified = event.verified
             verify_tag = " (verified)" if event.verified else ""
             self.status_text = f"Settings write complete: {event.size} byte(s){verify_tag}"
+            return
+
+        if isinstance(event, EventBlockRead):
+            self.block_read_space = int(event.space)
+            self.block_read_address = int(event.address)
+            self.block_read_data = bytes(event.data)
+            self.status_text = (
+                f"Block read complete: space=0x{int(event.space):02X} "
+                f"{len(event.data)} byte(s) @ 0x{int(event.address):04X}"
+            )
+            return
+
+        if isinstance(event, EventBlockWritten):
+            self.block_write_space = int(event.space)
+            self.block_write_address = int(event.address)
+            self.block_write_size = int(event.size)
+            self.block_write_verified = bool(event.verified)
+            verify_tag = " (verified)" if event.verified else ""
+            self.status_text = (
+                f"Block write complete: space=0x{int(event.space):02X} "
+                f"{event.size} byte(s) @ 0x{int(event.address):04X}{verify_tag}"
+            )
             return
 
         if isinstance(event, EventError):

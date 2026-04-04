@@ -57,6 +57,50 @@ from comm_proto.fcsp import (
     summarize_capability_tlvs,
 )
 
+from .backend_models import (
+    CommandCancelOperation,
+    CommandConnect,
+    CommandDisconnect,
+    CommandDownloadFirmware,
+    CommandEnterPassthrough,
+    CommandExitPassthrough,
+    CommandFlashAllEscs,
+    CommandFlashEsc,
+    CommandGetFcspLinkStatus,
+    CommandReadBlock,
+    CommandReadFourWayIdentity,
+    CommandReadSettings,
+    CommandRefreshFirmwareCatalog,
+    CommandRefreshPorts,
+    CommandScanEscs,
+    CommandSetMotorSpeed,
+    CommandShutdown,
+    CommandWriteBlock,
+    CommandWriteSettings,
+    EventAllEscsFlashed,
+    EventBlockRead,
+    EventBlockWritten,
+    EventConnected,
+    EventDisconnected,
+    EventError,
+    EventEscScanResult,
+    EventFcspCapabilities,
+    EventFcspLinkStatus,
+    EventFirmwareCatalogLoaded,
+    EventFirmwareDownloaded,
+    EventFirmwareFlashed,
+    EventFourWayIdentity,
+    EventLog,
+    EventMotorCount,
+    EventMspStats,
+    EventOperationCancelled,
+    EventPassthroughState,
+    EventPortsUpdated,
+    EventProgress,
+    EventProtocolTrace,
+    EventSettingsLoaded,
+    EventSettingsWritten,
+)
 from .firmware_catalog import FirmwareCatalogClient, FirmwareCatalogSnapshot, FirmwareRelease, describe_release_compatibility, load_firmware_file
 from .settings_decoder import DecodedSettings, decode_settings_payload
 
@@ -96,33 +140,6 @@ MSP_COMMAND_NAMES: dict[int, str] = {
 
 
 @dataclass(frozen=True)
-class CommandRefreshPorts:
-    """Request serial port enumeration."""
-
-
-@dataclass(frozen=True)
-class CommandConnect:
-    """Request a transport connection."""
-
-    port: str
-    baudrate: int = 115200
-    timeout: float = 0.2
-    protocol_mode: str = "msp"
-
-
-@dataclass(frozen=True)
-class CommandDisconnect:
-    """Request transport shutdown."""
-
-    reason: str = "Disconnected"
-
-
-@dataclass(frozen=True)
-class CommandShutdown:
-    """Request worker termination."""
-
-
-@dataclass(frozen=True)
 class _CommandPostConnectSetup:
     """Internal follow-up step so connection events are visible before probe logs."""
 
@@ -131,290 +148,12 @@ class _CommandPostConnectSetup:
     protocol_mode: str
 
 
-@dataclass(frozen=True)
-class CommandEnterPassthrough:
-    """Request MSP passthrough entry for the selected motor."""
-
-    motor_index: int = 0
-
-
-@dataclass(frozen=True)
-class CommandExitPassthrough:
-    """Request passthrough exit and 4-way reset behavior."""
-
-
-@dataclass(frozen=True)
-class CommandScanEscs:
-    """Request ESC scan while entering/refreshing passthrough state."""
-
-    motor_index: int = 0
-
-
-@dataclass(frozen=True)
-class CommandSetMotorSpeed:
-    """Request DSHOT speed write via MSP_SET_MOTOR for a single motor."""
-
-    motor_index: int = 0
-    speed: int = 0
-
-
-@dataclass(frozen=True)
-class CommandGetFcspLinkStatus:
-    """Request FCSP GET_LINK_STATUS for optimized-mode diagnostics."""
-
-
-@dataclass(frozen=True)
-class CommandReadFourWayIdentity:
-    """Request 4-way interface identity/version reads."""
-
-
-@dataclass(frozen=True)
-class CommandReadSettings:
-    """Request EEPROM/settings bytes from the active ESC."""
-
-    length: int = 128
-    address: int = 0
-    motor_index: int = 0
-
-
-@dataclass(frozen=True)
-class CommandRefreshFirmwareCatalog:
-    """Request firmware catalog refresh."""
-
-
-@dataclass(frozen=True)
-class CommandDownloadFirmware:
-    """Request a remote firmware image download for the selected release."""
-
-    release: FirmwareRelease
-    pwm_khz: int = 48
-
-
-@dataclass(frozen=True)
-class CommandWriteSettings:
-    """Request EEPROM/settings write to the active ESC."""
-
-    data: bytes
-    address: int = 0
-    verify_readback: bool = True
-
-
-@dataclass(frozen=True)
-class CommandFlashEsc:
-    """Request local firmware flash + verify for the active ESC."""
-
-    file_path: str
-    family: str
-    display_name: str = ""
-    verify_readback: bool = True
-    allow_incompatible: bool = False
-
-
-@dataclass(frozen=True)
-class CommandFlashAllEscs:
-    """Flash the same firmware to all ESCs in sequence, reading settings for each first."""
-
-    file_path: str
-    family: str
-    motor_count: int
-    display_name: str = ""
-    verify_readback: bool = True
-    settings_read_length: int = 255
-    settings_address: int = 0
-
-
-@dataclass(frozen=True)
-class CommandCancelOperation:
-    """Request cancellation of the current long-running flash or download operation."""
-
-
-@dataclass(frozen=True)
-class EventOperationCancelled:
-    """Emitted when a flash or download operation is cancelled by the user."""
-
-    operation: str  # "flash" | "download" | "flash_all"
-
-
-@dataclass(frozen=True)
-class EventPortsUpdated:
-    """Serial ports enumerated by the worker."""
-
-    ports: list[SerialPortDescriptor]
-
-
-@dataclass(frozen=True)
-class EventConnected:
-    """Transport connected successfully."""
-
-    port: str
-    baudrate: int
-    protocol_mode: str = "msp"
-
-
-@dataclass(frozen=True)
-class EventDisconnected:
-    """Transport disconnected or closed."""
-
-    reason: str
-
-
-@dataclass(frozen=True)
-class EventError:
-    """Recoverable worker error."""
-
-    message: str
-
-
-@dataclass(frozen=True)
-class EventLog:
-    """Log message emitted by the worker."""
-
-    level: str
-    message: str
-    source: str = "worker"
-
-
-@dataclass(frozen=True)
-class EventProtocolTrace:
-    """Detailed MSP / 4-way protocol trace line for debug UIs."""
-
-    channel: str
-    message: str
-
-
-@dataclass(frozen=True)
-class EventFcspCapabilities:
-    """Decoded FCSP handshake and capability information for optimized mode."""
-
-    peer_name: str
-    esc_count: int | None
-    feature_flags: int | None
-    tlvs: tuple[FcspTlv, ...] = ()
-
-
-@dataclass(frozen=True)
-class EventFcspLinkStatus:
-    """Latest FCSP link health counters from GET_LINK_STATUS."""
-
-    flags: int
-    rx_drops: int
-    crc_err: int
-
-
-@dataclass(frozen=True)
-class EventPassthroughState:
-    """Current passthrough state reported by the worker."""
-
-    active: bool
-    motor_index: int
-    esc_count: int
-
-
-@dataclass(frozen=True)
-class EventEscScanResult:
-    """ESC scan result from a passthrough command flow."""
-
-    esc_count: int
-    motor_index: int
-
-
-@dataclass(frozen=True)
-class EventFourWayIdentity:
-    """4-way identity information returned by the worker."""
-
-    interface_name: str
-    protocol_version: int
-    interface_version: str
-
-
-@dataclass(frozen=True)
-class EventSettingsLoaded:
-    """Raw EEPROM/settings payload from 4-way read."""
-
-    data: bytes
-    address: int
-    motor_index: int = 0
-
-
-@dataclass(frozen=True)
-class EventSettingsWritten:
-    """Result metadata for a settings write operation."""
-
-    address: int
-    size: int
-    verified: bool
-
-
-@dataclass(frozen=True)
-class EventFirmwareCatalogLoaded:
-    """Firmware catalog snapshot loaded by the worker."""
-
-    snapshot: FirmwareCatalogSnapshot
-    from_cache: bool = False
-
-
-@dataclass(frozen=True)
-class EventFirmwareDownloaded:
-    """Firmware image downloaded and cached for flashing."""
-
-    file_path: str
-    image_name: str
-    family: str
-    source: str
-    byte_count: int
-
-
-@dataclass(frozen=True)
-class EventProgress:
-    """Long-running operation progress update."""
-
-    operation: str
-    stage: str
-    current: int
-    total: int
-    message: str = ""
-
-
-@dataclass(frozen=True)
-class EventMotorCount:
-    """Motor count reported by the FC via MSP."""
-
-    count: int
-
-
-@dataclass(frozen=True)
-class EventMspStats:
-    """MSP transport health stats for UI status display."""
-
-    total: int
-    errors: int
-    success_percent: float
-    error_percent: float
-    messages_per_second: float
-
-
-@dataclass(frozen=True)
-class EventFirmwareFlashed:
-    """Final flash result metadata."""
-
-    byte_count: int
-    verified: bool
-    display_name: str
-    family: str
-    motor_index: int
-
-
-@dataclass(frozen=True)
-class EventAllEscsFlashed:
-    """Batch flash summary — emitted when CommandFlashAllEscs completes."""
-
-    total_attempted: int
-    total_succeeded: int
-    motor_indices: tuple[int, ...]
-
-
 class WorkerController:
-    """Queue-based worker that owns transport lifecycle outside the UI thread."""
+    """Queue-based backend/controller for transport and protocol execution.
+
+    The ImGui app is one frontend for this class, but the command/event boundary is
+    intentionally reusable for tests, alternate frontends, and non-GUI tools.
+    """
 
     def __init__(
         self,
@@ -992,6 +731,10 @@ class WorkerController:
     def enqueue(self, command: object) -> None:
         self._command_queue.put(command)
 
+    def submit(self, command: object) -> None:
+        """Frontend-agnostic alias for enqueue()."""
+        self.enqueue(command)
+
     def poll_events(self, max_events: int = 100) -> list[object]:
         events: list[object] = []
         for _ in range(max_events):
@@ -1000,6 +743,18 @@ class WorkerController:
             except queue.Empty:
                 break
         return events
+
+    def drain_events(self, max_events: int = 100) -> list[object]:
+        """Frontend-agnostic alias for poll_events()."""
+        return self.poll_events(max_events=max_events)
+
+    def load_cached_firmware_catalog_snapshot(self) -> FirmwareCatalogSnapshot | None:
+        """Return cached firmware catalog data without exposing private dependencies."""
+        return self._firmware_catalog_client.load_catalog_snapshot()
+
+    def get_cached_firmware_catalog_load_error(self) -> str | None:
+        """Return last cache-snapshot load error (if any) for startup observability."""
+        return getattr(self._firmware_catalog_client, "last_snapshot_load_error", None)
 
     def _emit(self, event: object) -> None:
         self._event_queue.put(event)
@@ -1756,6 +1511,120 @@ class WorkerController:
             )
         )
 
+    def _handle_read_block(self, command: CommandReadBlock) -> None:
+        """Generic FCSP READ_BLOCK for any address space (IO windows, telemetry, etc.)."""
+        space = int(command.space)
+        address = max(0, int(command.address))
+        length = max(1, min(0xFFFF, int(command.length)))
+
+        if not self._fcsp_block_op_ready(
+            FcspControlOp.READ_BLOCK,
+            space,
+            allow_fallback=False,
+        ):
+            message = (
+                f"READ_BLOCK for space 0x{space:02X} is not available"
+                " (FCSP handshake not complete or space not advertised)"
+            )
+            self._emit(EventError(message=message))
+            self._emit(EventLog("error", message, source="fcsp"))
+            return
+
+        response_data = self._send_fcsp_control_checked(
+            FcspControlOp.READ_BLOCK,
+            build_read_block_payload(space, address, length),
+            timeout=0.9,
+        )
+        if len(response_data) < 2:
+            raise RuntimeError("READ_BLOCK response too short")
+        read_len = int.from_bytes(response_data[:2], "big")
+        data = bytes(response_data[2:])
+        if len(data) != read_len:
+            raise RuntimeError(
+                f"READ_BLOCK length mismatch: expected {read_len} byte(s), received {len(data)}"
+            )
+        self._emit(EventBlockRead(space=space, address=address, data=data))
+        self._emit(
+            EventLog(
+                "info",
+                f"READ_BLOCK space=0x{space:02X}: {len(data)} byte(s) @ 0x{address:04X}",
+                source="fcsp",
+            )
+        )
+
+    def _handle_write_block(self, command: CommandWriteBlock) -> None:
+        """Generic FCSP WRITE_BLOCK for any address space (IO windows, etc.)."""
+        space = int(command.space)
+        address = max(0, int(command.address))
+        data = bytes(command.data)
+
+        if not data:
+            message = "WRITE_BLOCK data must not be empty"
+            self._emit(EventError(message=message))
+            self._emit(EventLog("warning", message))
+            return
+
+        if not self._fcsp_block_op_ready(
+            FcspControlOp.WRITE_BLOCK,
+            space,
+            allow_fallback=False,
+        ):
+            message = (
+                f"WRITE_BLOCK for space 0x{space:02X} is not available"
+                " (FCSP handshake not complete or space not advertised)"
+            )
+            self._emit(EventError(message=message))
+            self._emit(EventLog("error", message, source="fcsp"))
+            return
+
+        response_data = self._send_fcsp_control_checked(
+            FcspControlOp.WRITE_BLOCK,
+            build_write_block_payload(space, address, data),
+            timeout=0.9,
+        )
+        if len(response_data) < 2:
+            raise RuntimeError("WRITE_BLOCK response too short")
+        bytes_written = int.from_bytes(response_data[:2], "big")
+        if bytes_written != len(data):
+            raise RuntimeError(
+                f"WRITE_BLOCK short write: expected {len(data)} byte(s), wrote {bytes_written}"
+            )
+
+        verified = False
+        if command.verify_readback:
+            verify_data = self._send_fcsp_control_checked(
+                FcspControlOp.READ_BLOCK,
+                build_read_block_payload(space, address, len(data)),
+                timeout=0.9,
+            )
+            if len(verify_data) < 2:
+                raise RuntimeError("READ_BLOCK verify response too short")
+            verify_len = int.from_bytes(verify_data[:2], "big")
+            readback = bytes(verify_data[2:])
+            if len(readback) != verify_len:
+                raise RuntimeError(
+                    f"READ_BLOCK verify length mismatch: expected {verify_len} byte(s), received {len(readback)}"
+                )
+            verified = readback == data
+            if not verified:
+                message = (
+                    f"Block write verification failed @ space=0x{space:02X} 0x{address:04X}: "
+                    f"wrote {len(data)} byte(s), read back {len(readback)} byte(s)"
+                )
+                self._emit(EventError(message=message))
+                self._emit(EventLog("error", message, source="fcsp"))
+                return
+
+        self._emit(EventBlockWritten(space=space, address=address, size=len(data), verified=verified))
+        self._emit(
+            EventLog(
+                "info",
+                f"WRITE_BLOCK space=0x{space:02X}: {len(data)} byte(s) @ 0x{address:04X}"
+                + (" (verified)" if verified else ""),
+                source="fcsp",
+            )
+        )
+
     def _handle_flash_esc(self, command: CommandFlashEsc) -> None:
         if not self._require_msp_client():
             return
@@ -1809,6 +1678,24 @@ class WorkerController:
         total_pages = max(1, (len(data) + page_size - 1) // page_size)
 
         self._emit_progress("flash", "load", 1, 1, f"Loaded {display_name} ({len(data)} byte(s))")
+
+        # Migration note: when WRITE_BLOCK + FcspAddressSpace.FLASH are both advertised,
+        # the erase/write/verify loop below could migrate to native FCSP block ops using
+        # _fcsp_block_op_ready(FcspControlOp.WRITE_BLOCK, FcspAddressSpace.FLASH, allow_fallback=True).
+        # Until that path is validated on hardware, the 4-way wire protocol is used unconditionally.
+        if self._fcsp_block_op_ready(
+            FcspControlOp.WRITE_BLOCK,
+            int(FcspAddressSpace.FLASH),
+            allow_fallback=True,
+        ):
+            self._emit(
+                EventLog(
+                    "info",
+                    "FCSP WRITE_BLOCK + FLASH space advertised; native flash path available for future migration (currently using 4-way fallback).",
+                    source="flash",
+                )
+            )
+
         self._emit(
             EventLog(
                 "info",
@@ -2206,6 +2093,28 @@ class WorkerController:
                     self._emit(EventLog("error", msg))
                     if self._is_transport_fatal(exc):
                         self._disconnect_transport(f"Transport lost during settings write: {exc}")
+                continue
+
+            if isinstance(command, CommandReadBlock):
+                try:
+                    self._handle_read_block(command)
+                except Exception as exc:
+                    msg = f"Block read failed: {exc}"
+                    self._emit(EventError(message=msg))
+                    self._emit(EventLog("error", msg))
+                    if self._is_transport_fatal(exc):
+                        self._disconnect_transport(f"Transport lost during block read: {exc}")
+                continue
+
+            if isinstance(command, CommandWriteBlock):
+                try:
+                    self._handle_write_block(command)
+                except Exception as exc:
+                    msg = f"Block write failed: {exc}"
+                    self._emit(EventError(message=msg))
+                    self._emit(EventLog("error", msg))
+                    if self._is_transport_fatal(exc):
+                        self._disconnect_transport(f"Transport lost during block write: {exc}")
                 continue
 
             if isinstance(command, CommandShutdown):

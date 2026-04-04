@@ -32,10 +32,21 @@ def test_export_diagnostics_bundle_writes_expected_files(tmp_path: Path) -> None
     state.fcsp_supports_get_link_status = True
     state.fcsp_supports_read_block = True
     state.fcsp_supports_write_block = True
+    state.fcsp_supports_pt_enter = True
+    state.fcsp_supports_pt_exit = True
+    state.fcsp_supports_esc_scan = True
+    state.fcsp_supports_set_motor_speed = False
     state.fcsp_supports_esc_eeprom_space = True
     state.fcsp_supports_flash_space = True
     state.fcsp_supports_pwm_io_space = True
     state.fcsp_supports_dshot_io_space = False
+    state.block_read_space = 0x11
+    state.block_read_address = 0x20
+    state.block_read_data = b"\xAA\xBB\xCC\xDD"
+    state.block_write_space = 0x10
+    state.block_write_address = 0x30
+    state.block_write_size = 3
+    state.block_write_verified = True
     state.fcsp_link_flags = 0x0003
     state.fcsp_link_rx_drops = 5
     state.fcsp_link_crc_err = 2
@@ -78,10 +89,32 @@ def test_export_diagnostics_bundle_writes_expected_files(tmp_path: Path) -> None
     assert metadata["fcsp_supports_get_link_status"] is True
     assert metadata["fcsp_supports_read_block"] is True
     assert metadata["fcsp_supports_write_block"] is True
+    assert metadata["fcsp_supports_pt_enter"] is True
+    assert metadata["fcsp_supports_pt_exit"] is True
+    assert metadata["fcsp_supports_esc_scan"] is True
+    assert metadata["fcsp_supports_set_motor_speed"] is False
     assert metadata["fcsp_supports_esc_eeprom_space"] is True
     assert metadata["fcsp_supports_flash_space"] is True
     assert metadata["fcsp_supports_pwm_io_space"] is True
     assert metadata["fcsp_supports_dshot_io_space"] is False
+    assert metadata["fcsp_settings_read_native_available"] is True
+    assert metadata["fcsp_settings_write_native_available"] is True
+    assert metadata["fcsp_passthrough_native_available"] is True
+    assert metadata["fcsp_motor_speed_native_available"] is False
+    assert metadata["fcsp_dshot_io_native_available"] is False
+    assert metadata["fcsp_pwm_io_native_available"] is True
+    assert metadata["fcsp_flash_native_available"] is True
+    assert metadata["block_read_space"] == 0x11
+    assert metadata["block_read_address"] == 0x20
+    assert metadata["block_read_size"] == 4
+    assert metadata["block_read_preview_hex"] == "AA BB CC DD"
+    assert metadata["block_write_space"] == 0x10
+    assert metadata["block_write_address"] == 0x30
+    assert metadata["block_write_size"] == 3
+    assert metadata["block_write_verified"] is True
+    assert "peer=Tang9k FC" in metadata["fcsp_capability_summary_line"]
+    assert "SETTINGS-R=yes" in metadata["fcsp_native_paths_summary_line"]
+    assert "write(space=0x10" in metadata["fcsp_last_block_io_summary_line"]
     assert metadata["fcsp_link_flags"] == 0x0003
     assert metadata["fcsp_link_rx_drops"] == 5
     assert metadata["fcsp_link_crc_err"] == 2

@@ -4,6 +4,7 @@ APP_VERSION = "0.3.0-dev"
 
 from .app_state import AppState, ConnectionSettings, LogEntry, create_app_state
 from .diagnostics_export import export_diagnostics_bundle
+from .headless_cli import run_headless_frontend
 from .firmware_catalog import FirmwareCatalogClient, FirmwareCatalogSnapshot, FirmwareImage, FirmwareLayout, FirmwareRelease, load_firmware_file
 from .runtime_logging import configure_runtime_logging, flush_runtime_logging, get_logger, get_runtime_log_path
 from .settings_decoder import (
@@ -15,7 +16,7 @@ from .settings_decoder import (
     decode_settings_payload,
     get_editable_field_values,
 )
-from .worker import (
+from .backend_models import (
     CommandConnect,
     CommandDownloadFirmware,
     CommandDisconnect,
@@ -47,6 +48,8 @@ from .worker import (
     EventProgress,
     EventSettingsLoaded,
     EventSettingsWritten,
+)
+from .worker import (
     WorkerController,
 )
 
@@ -55,6 +58,7 @@ __all__ = [
     "AppState",
     "ConnectionSettings",
     "export_diagnostics_bundle",
+    "run_headless_frontend",
     "FirmwareCatalogClient",
     "FirmwareCatalogSnapshot",
     "FirmwareImage",

@@ -2531,3 +2531,279 @@ def test_worker_is_transport_fatal_recognises_ioerror() -> None:
     assert controller._is_transport_fatal(OSError("i/o error")) is True
     assert controller._is_transport_fatal(ValueError("bad value")) is False
     assert controller._is_transport_fatal(RuntimeError("timeout")) is False
+
+
+# ---------------------------------------------------------------------------
+# MSP fallback path regression — must pass while FCSP-native paths are added
+# ---------------------------------------------------------------------------
+
+def test_worker_msp_mode_read_settings_uses_fourway_never_fcsp() -> None:
+    """In plain MSP mode (no FCSP), CommandReadSettings must use the 4-way wire path.
+    No FCSP frames should be written to the transport."""
+    msp = FakeMspClient(responses=[MOTOR_PAYLOAD_4, b"\x02"])
+    fourway = FakeFourWayClient()
+
+    controller = WorkerController(
+        port_enumerator=lambda: [],
+        transport_factory=lambda p, b, t: FakeTransport(p, b, t),
+        msp_client_factory=lambda _t: msp,
+        fourway_client_factory=lambda _t: fourway,
+    )
+    controller.start()
+    try:
+        controller.enqueue(CommandConnect(port="/dev/ttyUSB0"))  # default protocol_mode="msp"
+        _ = wait_for_event(controller, EventConnected)
+
+        controller.enqueue(CommandEnterPassthrough(motor_index=0))
+        _ = wait_for_passthrough_state(controller, active=True)
+
+        controller.enqueue(CommandReadSettings(length=32, address=0))
+        settings = wait_for_event(controller, EventSettingsLoaded)
+
+        assert len(settings.data) == 32
+        # MSP_SET_PASSTHROUGH = 245 must have been called, not FCSP
+        assert any(cmd == 245 for cmd, _ in msp.calls)
+        # FourWay read_eeprom must have been called
+        fourway_reads = [c for c, _, _ in fourway.send_calls if c == FOURWAY_CMDS["read_eeprom"]]
+        assert fourway_reads
+    finally:
+        controller.stop()
+
+
+def test_worker_msp_mode_write_settings_uses_fourway_never_fcsp() -> None:
+    """In plain MSP mode, CommandWriteSettings must use the 4-way path; FCSP is not used."""
+    msp = FakeMspClient(responses=[MOTOR_PAYLOAD_4, b"\x02"])
+    fourway = FakeFourWayClient()
+
+    controller = WorkerController(
+        port_enumerator=lambda: [],
+        transport_factory=lambda p, b, t: FakeTransport(p, b, t),
+        msp_client_factory=lambda _t: msp,
+        fourway_client_factory=lambda _t: fourway,
+    )
+    controller.start()
+    try:
+        controller.enqueue(CommandConnect(port="/dev/ttyUSB0"))
+        _ = wait_for_event(controller, EventConnected)
+
+        controller.enqueue(CommandEnterPassthrough(motor_index=0))
+        _ = wait_for_passthrough_state(controller, active=True)
+
+        controller.enqueue(CommandWriteSettings(data=bytes(range(16)), address=0, verify_readback=True))
+        written = wait_for_event(controller, EventSettingsWritten)
+
+        assert written.size == 16
+        # 4-way write_eeprom must have been called
+        fourway_writes = [c for c, _, _ in fourway.send_calls if c == FOURWAY_CMDS["write_eeprom"]]
+        assert fourway_writes
+    finally:
+        controller.stop()
+
+
+# ---------------------------------------------------------------------------
+# Generic FCSP block I/O — READ_BLOCK / WRITE_BLOCK for dynamic spaces
+# ---------------------------------------------------------------------------
+
+def _make_fcsp_handshake_script(extra_responses: list[bytes] = ()) -> bytes:
+    """Return a scripted read buffer containing a minimal HELLO+GET_CAPS exchange
+    followed by any caller-provided response frames.  No SUPPORTED_OPS or
+    SUPPORTED_SPACES TLVs are included so all ops/spaces are treated as
+    available (bitmap is None → advertised by default).
+    """
+    hello_frame = make_fcsp_control_frame(
+        FcspControlOp.HELLO,
+        build_hello_response_payload(
+            FcspResult.OK,
+            [FcspTlv(tlv_type=FCSP_HELLO_TLV_ENDPOINT_NAME, value=b"Tang9k FC")],
+        ),
+        seq=1,
+    )
+    caps_frame = make_fcsp_control_frame(
+        FcspControlOp.GET_CAPS,
+        build_get_caps_response_payload(
+            FcspResult.OK,
+            [FcspTlv(tlv_type=FCSP_CAP_TLV_DSHOT_MOTOR_COUNT, value=b"\x04")],
+        ),
+        seq=2,
+    )
+    return b"".join([hello_frame, caps_frame] + list(extra_responses))
+
+
+def _make_read_block_response(block: bytes, *, seq: int = 3) -> bytes:
+    """Build a make_fcsp_control_response-style READ_BLOCK success frame."""
+    length_prefix = len(block).to_bytes(2, "big")
+    return make_fcsp_control_response(FcspControlOp.READ_BLOCK, data=length_prefix + block, seq=seq)
+
+
+def _make_write_block_response(byte_count: int, *, seq: int = 3) -> bytes:
+    """Build a WRITE_BLOCK success response frame."""
+    return make_fcsp_control_response(FcspControlOp.WRITE_BLOCK, data=byte_count.to_bytes(2, "big"), seq=seq)
+
+
+def test_worker_fcsp_read_block_dshot_io_space_emits_event_block_read() -> None:
+    """CommandReadBlock for DSHOT_IO (0x11) emits EventBlockRead with the returned data."""
+    from comm_proto.fcsp import FcspAddressSpace
+    from imgui_bundle_esc_config.worker import CommandReadBlock, EventBlockRead
+
+    block_payload = bytes([0x01, 0x02, 0x03, 0x04])
+    read_script = _make_fcsp_handshake_script([_make_read_block_response(block_payload)])
+
+    created: list[FakeFcspTransport] = []
+
+    def make_transport(port: str, baudrate: int, timeout: float) -> FakeFcspTransport:
+        t = FakeFcspTransport(port, baudrate, timeout, read_script=read_script)
+        created.append(t)
+        return t
+
+    controller = WorkerController(
+        port_enumerator=lambda: [],
+        transport_factory=make_transport,
+        msp_client_factory=lambda _t: FakeMspClient(),
+    )
+    controller.start()
+    try:
+        controller.enqueue(CommandConnect(port="/dev/ttyUSB0", protocol_mode="optimized_tang9k"))
+        _ = wait_for_event(controller, EventConnected)
+
+        controller.enqueue(CommandReadBlock(space=int(FcspAddressSpace.DSHOT_IO), address=0, length=4))
+        event = wait_for_event(controller, EventBlockRead)
+
+        assert event.space == int(FcspAddressSpace.DSHOT_IO)
+        assert event.address == 0
+        assert event.data == block_payload
+
+        # Verify the correct FCSP frame was sent on the wire
+        assert created
+        ops = [parse_control_payload(decode_frame(raw).payload)[0] for raw in created[0].writes]
+        assert FcspControlOp.READ_BLOCK in ops
+    finally:
+        controller.stop()
+
+
+def test_worker_fcsp_write_block_pwm_io_space_emits_event_block_written() -> None:
+    """CommandWriteBlock for PWM_IO (0x10) emits EventBlockWritten."""
+    from comm_proto.fcsp import FcspAddressSpace
+    from imgui_bundle_esc_config.worker import CommandWriteBlock, EventBlockWritten
+
+    payload = bytes([0xAA, 0xBB, 0xCC])
+    read_script = _make_fcsp_handshake_script([_make_write_block_response(len(payload))])
+
+    created: list[FakeFcspTransport] = []
+
+    def make_transport(port: str, baudrate: int, timeout: float) -> FakeFcspTransport:
+        t = FakeFcspTransport(port, baudrate, timeout, read_script=read_script)
+        created.append(t)
+        return t
+
+    controller = WorkerController(
+        port_enumerator=lambda: [],
+        transport_factory=make_transport,
+        msp_client_factory=lambda _t: FakeMspClient(),
+    )
+    controller.start()
+    try:
+        controller.enqueue(CommandConnect(port="/dev/ttyUSB0", protocol_mode="optimized_tang9k"))
+        _ = wait_for_event(controller, EventConnected)
+
+        controller.enqueue(CommandWriteBlock(space=int(FcspAddressSpace.PWM_IO), data=payload, address=0))
+        event = wait_for_event(controller, EventBlockWritten)
+
+        assert event.space == int(FcspAddressSpace.PWM_IO)
+        assert event.address == 0
+        assert event.size == len(payload)
+        assert event.verified is False
+
+        assert created
+        ops = [parse_control_payload(decode_frame(raw).payload)[0] for raw in created[0].writes]
+        assert FcspControlOp.WRITE_BLOCK in ops
+    finally:
+        controller.stop()
+
+
+def test_worker_fcsp_write_block_with_verify_readback_succeeds() -> None:
+    """CommandWriteBlock with verify_readback=True performs READ_BLOCK confirm and sets verified=True."""
+    from comm_proto.fcsp import FcspAddressSpace
+    from imgui_bundle_esc_config.worker import CommandWriteBlock, EventBlockWritten
+
+    payload = bytes([0x11, 0x22, 0x33, 0x44])
+    write_resp = _make_write_block_response(len(payload), seq=3)
+    read_resp = _make_read_block_response(payload, seq=4)
+    read_script = _make_fcsp_handshake_script([write_resp, read_resp])
+
+    created: list[FakeFcspTransport] = []
+
+    def make_transport(port: str, baudrate: int, timeout: float) -> FakeFcspTransport:
+        t = FakeFcspTransport(port, baudrate, timeout, read_script=read_script)
+        created.append(t)
+        return t
+
+    controller = WorkerController(
+        port_enumerator=lambda: [],
+        transport_factory=make_transport,
+        msp_client_factory=lambda _t: FakeMspClient(),
+    )
+    controller.start()
+    try:
+        controller.enqueue(CommandConnect(port="/dev/ttyUSB0", protocol_mode="optimized_tang9k"))
+        _ = wait_for_event(controller, EventConnected)
+
+        controller.enqueue(
+            CommandWriteBlock(space=int(FcspAddressSpace.DSHOT_IO), data=payload, address=0x10, verify_readback=True)
+        )
+        event = wait_for_event(controller, EventBlockWritten)
+
+        assert event.verified is True
+        assert event.size == len(payload)
+        assert event.address == 0x10
+
+        assert created
+        ops = [parse_control_payload(decode_frame(raw).payload)[0] for raw in created[0].writes]
+        assert FcspControlOp.WRITE_BLOCK in ops
+        assert ops.count(FcspControlOp.READ_BLOCK) >= 1
+    finally:
+        controller.stop()
+
+
+def test_worker_fcsp_read_block_emits_error_when_space_not_advertised() -> None:
+    """CommandReadBlock is rejected with EventError when the target space is absent from capabilities."""
+    from comm_proto.fcsp import FcspAddressSpace, FCSP_CAP_TLV_SUPPORTED_SPACES
+    from imgui_bundle_esc_config.worker import CommandReadBlock
+
+    # Bitmap: 3 bytes all zero — space 0x11 (DSHOT_IO) is NOT set.
+    hello_frame = make_fcsp_control_frame(
+        FcspControlOp.HELLO,
+        build_hello_response_payload(
+            FcspResult.OK,
+            [FcspTlv(tlv_type=FCSP_HELLO_TLV_ENDPOINT_NAME, value=b"Tang9k FC")],
+        ),
+        seq=1,
+    )
+    caps_frame = make_fcsp_control_frame(
+        FcspControlOp.GET_CAPS,
+        build_get_caps_response_payload(
+            FcspResult.OK,
+            [
+                FcspTlv(tlv_type=FCSP_CAP_TLV_DSHOT_MOTOR_COUNT, value=b"\x04"),
+                FcspTlv(tlv_type=FCSP_CAP_TLV_SUPPORTED_SPACES, value=b"\x00\x00\x00"),
+            ],
+        ),
+        seq=2,
+    )
+    read_script = hello_frame + caps_frame
+
+    controller = WorkerController(
+        port_enumerator=lambda: [],
+        transport_factory=lambda p, b, t: FakeFcspTransport(p, b, t, read_script=read_script),
+        msp_client_factory=lambda _t: FakeMspClient(),
+    )
+    controller.start()
+    try:
+        controller.enqueue(CommandConnect(port="/dev/ttyUSB0", protocol_mode="optimized_tang9k"))
+        _ = wait_for_event(controller, EventConnected)
+
+        controller.enqueue(CommandReadBlock(space=int(FcspAddressSpace.DSHOT_IO), address=0, length=8))
+        error = wait_for_event(controller, EventError)
+
+        assert "0x11" in error.message or "not available" in error.message
+    finally:
+        controller.stop()

@@ -22,6 +22,15 @@ This repository is the **desktop Python ESC configurator**.
 
 It is the **full-featured ESC configurator target** for this project — not a stripped-down demo, not a temporary helper tool.
 
+It is also intended to serve as a **classroom / reference implementation** for how to structure this kind of software well.
+
+That means the repo is meant to teach:
+
+- users how the tool works
+- programmers how to structure non-blocking GUI applications
+- engineers how to separate frontend workflow from protocol/backend execution
+- AI coding agents what this project considers the preferred architecture standard
+
 ## What it does
 
 - ESC passthrough
@@ -30,6 +39,7 @@ It is the **full-featured ESC configurator target** for this project — not a s
 - firmware catalog/download
 - firmware flash/verify workflows
 - diagnostics, logs, and protocol traces
+- simple headless backend frontend (`python -m imgui_bundle_esc_config.headless_cli`) for classroom/reference use
 
 ## Protocol status
 
@@ -41,6 +51,23 @@ In short:
 
 - **today:** fully featured MSP-based ESC configurator
 - **next:** same configurator workflows over FCSP where appropriate
+
+### FCSP implementation status (current)
+
+| Feature | Status |
+|---|---|
+| Frame codec (`encode_frame` / `decode_frame`) | ✅ complete |
+| HELLO handshake | ✅ complete |
+| GET_CAPS + capability TLVs | ✅ complete |
+| `PT_ENTER` / `PT_EXIT` / `ESC_SCAN` native | ✅ complete, with MSP fallback |
+| `SET_MOTOR_SPEED` native | ✅ complete, with MSP fallback |
+| `GET_LINK_STATUS` native | ✅ complete |
+| `READ_BLOCK` for `ESC_EEPROM` (settings read) | ✅ complete, with 4-way fallback |
+| `WRITE_BLOCK` for `ESC_EEPROM` (settings write) | ✅ complete, with 4-way fallback |
+| `READ_BLOCK` / `WRITE_BLOCK` for IO windows (`DSHOT_IO`, `PWM_IO`) | ✅ complete, no fallback (space-gated) |
+| Capability-gated op / space availability in AppState | ✅ complete |
+| `WRITE_BLOCK` for `FLASH` space (native firmware flash) | 🔜 migration path defined, hardware validation pending |
+| Optimized-mode runtime beyond discovery (multi-ESC real HW) | 🔜 pending hardware evidence |
 
 ## Companion repository
 
@@ -54,18 +81,56 @@ Canonical FCSP spec lives there:
 
 Do not duplicate the FCSP spec in this repository.
 
-## Screenshot
+## Screenshots
 
 Current Python ImGui ESC configurator UI:
 
 ![Python ImGui ESC Configurator screenshot](docs/assets/python-imgui-esc-configurator-main.png)
+
+Windows operator screenshot:
+
+- Pending capture on a live Windows operator station. (Tracked in `GITHUB_TODO.md`.)
+
+## Windows operator setup (explicit path)
+
+From repository root in PowerShell:
+
+- Create venv: `py -3 -m venv .venv`
+- Activate: `.\.venv\Scripts\Activate.ps1`
+- Install deps: `pip install -r imgui_bundle_esc_config/requirements.txt`
+- Run app: `python -m imgui_bundle_esc_config.app`
+
+If script execution is restricted, run:
+
+- `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass`
+
+Then activate `.\.venv\Scripts\Activate.ps1` again.
 
 ## Start here
 
 - `REQUIREMENTS.md` — clear repository requirements
 - `GITHUB_TODO.md` — active GitHub task list
 - `HISTORY.md` — running technical history (changes + pytest verification)
+- `docs/HIL_SMOKE_CHECKLIST.md` — operator hardware smoke checklist
+- `docs/PARITY_SIGNOFF_TEMPLATE.md` — GO/NO-GO replacement parity decision template
 - `imgui_bundle_esc_config/DESIGN_REQUIREMENTS.md` — detailed application requirements
+
+## Classroom / reference-implementation goal
+
+This project is not only trying to ship a useful ESC configurator.
+
+It is also trying to **show the standard** for this style of application.
+
+Concretely, the repository is intended to teach humans and AI agents how to:
+
+- build responsive GUI applications without blocking the render loop
+- separate frontend code from protocol/transport/backend code
+- use typed command/event boundaries instead of ad-hoc shared state
+- keep protocol logic reusable across GUI, CLI, tests, and alternate frontends
+- use pytest to validate backend behavior directly
+- preserve logs, traces, diagnostics, and history as first-class engineering tools
+
+In other words: this repo should be understandable as both a product and a **worked example of good architecture**.
 
 ## GUI loop / thread separation (quick pointers)
 
@@ -81,6 +146,36 @@ Design rule of thumb:
 - UI thread owns ImGui calls
 - worker thread owns serial/protocol I/O
 - queues connect them (`Command*` UI→worker, `Event*` worker→UI)
+
+## Worker-as-kernel philosophy
+
+The worker layer is intentionally treated as a **stand-alone backend/kernel**, not as GUI-only glue.
+
+That is a deliberate reuse decision:
+
+- the current ImGui desktop app is one frontend for it
+- pytest modules can drive it directly with fake transports/clients
+- future command-line tools can reuse the same command/event model
+- the same threading/queue model can power another app frontend without rewriting protocol logic
+- if ImGui is replaced later, the protocol/backend code should still be reusable
+- embedded `rt-fc-offloader` bring-up helpers and diagnostics tools can reuse the same backend behavior patterns
+
+Practical meaning:
+
+- keep protocol/transport logic in `imgui_bundle_esc_config/worker.py`
+- keep UI rendering concerns in `imgui_bundle_esc_config/ui_main.py`
+- prefer typed commands/events over direct GUI-owned protocol calls
+- keep worker code usable with test doubles, simulated transports, and non-GUI harnesses
+
+Example mindset:
+
+- if we want to start another app later, we should be able to keep the worker/threading model and build a different frontend on top of it
+- if we replace ImGui with something else, the protocol code should mostly be reused rather than rewritten
+- the frontend can change; the backend command/event kernel should stay reusable
+
+This is not just an implementation convenience; it is a project philosophy. Reuse through a worker/backend boundary is a deliberate requirement because it improves bring-up speed, testability, CLI/tooling reuse, and future integration with offloader-side workflows.
+
+It also supports the classroom goal of the repository: people should be able to study this split and learn a reusable pattern they can apply in their own projects.
 
 ## Protocol separation (MSP + FCSP)
 
@@ -109,7 +204,7 @@ Recommended starting path:
 1. Start from `imgui_bundle_esc_config/app.py` to understand the frame loop and startup/shutdown flow.
 2. Add or adjust UI in `imgui_bundle_esc_config/ui_main.py` (panels, controls, button handlers).
 3. Keep persistent UI/session state in `imgui_bundle_esc_config/app_state.py`.
-4. Add worker commands/events in `imgui_bundle_esc_config/worker.py` for any blocking operation.
+4. Add/update shared command/event contracts in `imgui_bundle_esc_config/backend_models.py`, then implement handling in `imgui_bundle_esc_config/worker.py`.
 5. Add unit tests in `unitTests/test_imgui_worker.py` and related state/export tests when behavior changes.
 
 Practical suggestions:
@@ -124,6 +219,32 @@ Quick anti-pattern checklist:
 - Don't call ImGui APIs from worker code.
 - Don't access serial transport directly from UI code.
 - Don't hard-wire protocol details into UI flow logic.
+- Don't make worker behavior depend on ImGui-only state or widget lifetimes.
+
+## Pytest and module-reuse mindset
+
+Code reuse through pytest-friendly modules is a first-class design goal here.
+
+Why that matters:
+
+- worker behavior can be validated without launching the UI
+- fake MSP / 4-way / FCSP transports can exercise protocol flows deterministically
+- this repository can help users, programmers, and engineers learn how to structure GUI code around a reusable backend instead of burying logic inside widgets
+- the same backend patterns can support GUI apps, command-line tools, simulations, and embedded bring-up helpers
+- regressions can be caught at the module boundary before they become UI bugs
+
+Good examples already in the repo:
+
+- `unitTests/test_imgui_worker.py` drives `WorkerController` directly
+- fake transports/clients are injected into the worker for deterministic tests
+- app-state/export tests validate the non-UI layers independently of rendering
+
+Rule of thumb:
+
+- if logic is useful for UI, CLI, simulation, or embedded bring-up, it belongs in the reusable worker/protocol layer first
+- the GUI should mainly orchestrate and visualize that backend behavior
+
+This is part of the standard the repo is trying to teach.
 
 ## Why we chose `imgui-bundle`
 

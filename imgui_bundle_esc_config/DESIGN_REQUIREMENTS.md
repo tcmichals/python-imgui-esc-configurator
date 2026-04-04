@@ -30,6 +30,12 @@ verified_on: 2026-03-22
 
 The replacement should preserve the major workflow and capabilities users expect from `esc-configurator`, while adapting the implementation to a Python desktop application built with `imgui-bundle`.
 
+This project also has an explicit **classroom/reference** goal:
+
+- it should help users understand how the tool works
+- it should help programmers and engineers learn how to structure non-blocking GUI + backend systems
+- it should give AI coding agents a concrete repository-level standard for how this codebase wants GUI, worker, protocol, testing, and diagnostics concerns separated
+
 ## AI usage intent
 
 This document is also intended to be used as **prompt context for AI coding agents**.
@@ -42,6 +48,11 @@ When used in prompts, this file should be treated as:
 - the implementation constraint list
 
 When an AI agent uses this document, it should prefer the requirements here over inventing alternate workflows unless the user explicitly asks for a deviation.
+
+Additional policy intent:
+
+- this repository should teach the preferred standard, not merely contain working code
+- when there are multiple reasonable implementation choices, prefer the one that best demonstrates reusable architecture, testability, and observability
 
 ## Canonical terminology
 
@@ -167,6 +178,7 @@ Any AI agent implementing this project should follow these constraints:
 - prefer explicit models for commands, events, ESC metadata, settings, and firmware images
 - preserve enough logging and diagnostics for field debugging
 - treat native Python desktop transport/control as the primary delivery path; webapp TCP-bridge compatibility layers are optional future integration work and should not block core replacement milestones
+- do not entangle worker logic with ImGui-only state; preserve worker reuse for pytest modules, command-line tooling, alternate frontends, and offloader bring-up utilities
 
 ## Implementation priorities for AI agents
 
@@ -215,6 +227,7 @@ Responsibilities:
 Important rule:
 
 - the worker thread is the **only** thread allowed to access the live serial transport
+- the worker/backend layer should remain usable outside the ImGui runtime (tests, CLI tools, and alternate frontends)
 
 ### Inter-thread communication
 
@@ -249,6 +262,33 @@ Suggested queue payload types:
 - `EventLog`
 - `EventError`
 - `EventOperationComplete`
+
+### Worker reuse philosophy (required)
+
+The worker layer is a **reusable backend/kernel boundary** for this repository, not merely a private implementation detail of the ImGui desktop frontend.
+
+Required implications:
+
+- protocol execution logic must stay concentrated in reusable worker/protocol modules rather than UI code
+- the worker must remain drivable from pytest without launching the ImGui application
+- the worker design should support reuse by non-GUI tools such as command-line diagnostics, simulation harnesses, and `rt-fc-offloader`-adjacent bring-up helpers
+- the same command/event + threading model should be reusable if another app frontend is created later
+- if ImGui is replaced, the protocol/backend layer should remain largely reusable
+- fake transports/clients and dependency injection are preferred where they improve deterministic module-level testing and reuse
+- GUI code should orchestrate commands/events, not become the only place where protocol workflows can be exercised
+
+Rationale:
+
+- helps users, programmers, and engineers learn a reusable GUI/backend architecture instead of a widget-bound one
+- enables code reuse across GUI, alternate app frontends, CLI, tests, and embedded/offloader support tooling
+- keeps protocol bring-up and troubleshooting fast
+- improves regression coverage through module-level pytest tests
+- prevents UI concerns from contaminating reusable protocol/backend logic
+
+Educational/reference requirement:
+
+- code structure should remain clear enough that this repository can be used as a teaching example for “how to build this kind of app correctly”
+- architectural shortcuts that obscure the frontend/backend split should be avoided unless strongly justified
 
 ## Core user workflow
 
@@ -744,6 +784,7 @@ A clean module layout for the desktop replacement is:
   - UI state and shared models
 - `worker.py`
   - background worker loop and command execution
+  - reusable backend/kernel layer for GUI, pytest, CLI, alternate frontends, and bring-up harnesses
 - `transport_serial.py`
   - serial port ownership and framing
 - `transport_msp.py`

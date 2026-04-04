@@ -81,6 +81,8 @@ From repository root:
 - `diagnostics_export.py` — timestamped diagnostics bundle export
 - `runtime_logging.py` — Python file logging mirror of the in-app log window
 - `ui_main.py` — ImGui rendering helpers for all panels: connection, passthrough/DSHOT, settings, firmware, diagnostics
+- `headless_cli.py` — simple command-line classroom frontend that drives the same worker/backend command-event contract
+	- includes `ports`, `connect`, and `monitor` demo-oriented subcommands
 - `DESIGN_REQUIREMENTS.md` — canonical scope, architecture, and roadmap document
 
 ## Validation status
@@ -93,7 +95,8 @@ The current Python foundation is validated with:
 
 Recent verified run (this session):
 
-- `python/unitTests`: **131 passed**
+- `unitTests/test_headless_cli.py`: **5 passed**
+- `python/unitTests`: **186 passed**
 
 ## Project direction
 

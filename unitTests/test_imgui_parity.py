@@ -12,7 +12,7 @@ from pathlib import Path
 
 from imgui_bundle_esc_config.app_state import create_app_state
 from imgui_bundle_esc_config.firmware_catalog import FirmwareCatalogSnapshot, FirmwareRelease
-from imgui_bundle_esc_config.ui_main import _ellipsize, _status_metrics_text
+from imgui_bundle_esc_config.ui_main import _ellipsize, _status_layout_params, _status_metrics_text
 from imgui_bundle_esc_config.worker import (
     EventConnected,
     EventDisconnected,
@@ -837,3 +837,217 @@ def test_status_metrics_text_full_mode() -> None:
     assert "Err: 1%" in full
     assert "Rate: 12.3/s" in full
     assert "Motors: 8" in full
+
+
+def test_status_layout_params_compact_threshold_behavior() -> None:
+    compact_just_below = _status_layout_params(759.9)
+    compact_at_boundary = _status_layout_params(760.0)
+
+    assert compact_just_below[0] is True
+    assert compact_at_boundary[0] is False
+
+
+def test_status_layout_params_compact_limits() -> None:
+    compact, status_chars, port_chars, metrics_chars = _status_layout_params(500.0)
+    assert compact is True
+    assert status_chars == 42
+    assert port_chars == 28
+    assert metrics_chars == 70
+
+
+def test_status_layout_params_full_limits() -> None:
+    compact, status_chars, port_chars, metrics_chars = _status_layout_params(1024.0)
+    assert compact is False
+    assert status_chars == 120
+    assert port_chars == 80
+    assert metrics_chars == 120
+
+
+# ---------------------------------------------------------------------------
+# FCSP capability-gated availability computed properties
+# ---------------------------------------------------------------------------
+
+def _make_caps_event_with_ops_and_spaces(
+    ops_bitmap_bytes: bytes | None,
+    spaces_bitmap_bytes: bytes | None,
+) -> object:
+    """Build an EventFcspCapabilities with explicit bitmaps encoded into TLVs."""
+    from comm_proto.fcsp import (
+        FCSP_CAP_TLV_SUPPORTED_OPS,
+        FCSP_CAP_TLV_SUPPORTED_SPACES,
+        FcspTlv,
+    )
+    from imgui_bundle_esc_config.worker import EventFcspCapabilities
+
+    tlvs: list = []
+    if ops_bitmap_bytes is not None:
+        tlvs.append(FcspTlv(tlv_type=FCSP_CAP_TLV_SUPPORTED_OPS, value=ops_bitmap_bytes))
+    if spaces_bitmap_bytes is not None:
+        tlvs.append(FcspTlv(tlv_type=FCSP_CAP_TLV_SUPPORTED_SPACES, value=spaces_bitmap_bytes))
+    return EventFcspCapabilities(peer_name="Tang9k FC", esc_count=4, feature_flags=None, tlvs=tuple(tlvs))
+
+
+def test_fcsp_computed_props_no_bitmap_returns_none() -> None:
+    """When no ops/spaces bitmaps are present, all computed properties return None."""
+    state = create_app_state()
+    state.apply_event(_make_caps_event_with_ops_and_spaces(None, None))
+
+    assert state.fcsp_settings_read_native_available() is None
+    assert state.fcsp_settings_write_native_available() is None
+    assert state.fcsp_passthrough_native_available() is None
+    assert state.fcsp_motor_speed_native_available() is None
+    assert state.fcsp_dshot_io_native_available() is None
+    assert state.fcsp_pwm_io_native_available() is None
+    assert state.fcsp_flash_native_available() is None
+
+
+def test_fcsp_computed_props_all_zero_bitmaps_return_false() -> None:
+    """All-zero bitmaps → all computed properties return False (nothing advertised)."""
+    state = create_app_state()
+    state.apply_event(_make_caps_event_with_ops_and_spaces(b"\x00\x00\x00", b"\x00\x00\x00"))
+
+    assert state.fcsp_settings_read_native_available() is False
+    assert state.fcsp_settings_write_native_available() is False
+    assert state.fcsp_passthrough_native_available() is False
+    assert state.fcsp_motor_speed_native_available() is False
+    assert state.fcsp_dshot_io_native_available() is False
+    assert state.fcsp_pwm_io_native_available() is False
+    assert state.fcsp_flash_native_available() is False
+
+
+def test_fcsp_computed_props_read_block_esc_eeprom_advertised() -> None:
+    """READ_BLOCK (op 0x10) + ESC_EEPROM space (0x02) → settings_read_native_available True."""
+    from comm_proto.fcsp import FcspAddressSpace, FcspControlOp
+
+    # Set bit for READ_BLOCK (0x10=16) in ops bitmap.
+    # Bitmap is LSB-first: bit 16 is byte[2] bit 0
+    ops_bm = bytearray(4)
+    ops_bm[int(FcspControlOp.READ_BLOCK) // 8] |= 1 << (int(FcspControlOp.READ_BLOCK) % 8)
+
+    # Set bit for ESC_EEPROM (0x02) in spaces bitmap.
+    spaces_bm = bytearray(4)
+    spaces_bm[int(FcspAddressSpace.ESC_EEPROM) // 8] |= 1 << (int(FcspAddressSpace.ESC_EEPROM) % 8)
+
+    state = create_app_state()
+    state.apply_event(_make_caps_event_with_ops_and_spaces(bytes(ops_bm), bytes(spaces_bm)))
+
+    assert state.fcsp_settings_read_native_available() is True
+    assert state.fcsp_settings_write_native_available() is False  # WRITE_BLOCK not set
+    assert state.fcsp_dshot_io_native_available() is False        # DSHOT_IO space not set
+
+
+def test_fcsp_computed_props_pt_enter_advertised() -> None:
+    """PT_ENTER (op 0x01) advertised → passthrough_native_available True; motor speed still False."""
+    from comm_proto.fcsp import FcspControlOp
+
+    ops_bm = bytearray(4)
+    ops_bm[int(FcspControlOp.PT_ENTER) // 8] |= 1 << (int(FcspControlOp.PT_ENTER) % 8)
+
+    state = create_app_state()
+    state.apply_event(_make_caps_event_with_ops_and_spaces(bytes(ops_bm), None))
+
+    assert state.fcsp_passthrough_native_available() is True
+    assert state.fcsp_motor_speed_native_available() is False  # SET_MOTOR_SPEED not set
+    assert state.fcsp_settings_read_native_available() is None  # spaces bitmap not present
+
+
+def test_fcsp_cap_flags_reset_to_none_on_disconnect() -> None:
+    """After disconnect, all new op flags and block I/O state are cleared."""
+    from comm_proto.fcsp import FcspControlOp, FcspAddressSpace
+    from imgui_bundle_esc_config.worker import EventBlockRead, EventBlockWritten
+
+    ops_bm = bytearray(4)
+    ops_bm[int(FcspControlOp.PT_ENTER) // 8] |= 1 << (int(FcspControlOp.PT_ENTER) % 8)
+
+    state = create_app_state()
+    state.apply_event(EventConnected(port="/dev/ttyUSB0", baudrate=115200))
+    state.apply_event(_make_caps_event_with_ops_and_spaces(bytes(ops_bm), None))
+    state.apply_event(EventBlockRead(space=int(FcspAddressSpace.DSHOT_IO), address=0, data=b"\x01\x02"))
+    state.apply_event(EventBlockWritten(space=int(FcspAddressSpace.PWM_IO), address=0x10, size=3, verified=True))
+
+    # Confirm data was received
+    assert state.fcsp_supports_pt_enter is True
+    assert state.block_read_data == b"\x01\x02"
+    assert state.block_write_verified is True
+
+    state.apply_event(EventDisconnected(reason="test"))
+
+    assert state.fcsp_supports_pt_enter is None
+    assert state.fcsp_supports_pt_exit is None
+    assert state.fcsp_supports_esc_scan is None
+    assert state.fcsp_supports_set_motor_speed is None
+    assert state.block_read_space is None
+    assert state.block_read_address is None
+    assert state.block_read_data is None
+    assert state.block_write_space is None
+    assert state.block_write_size is None
+    assert state.block_write_verified is False
+
+
+def test_app_state_event_block_read_updates_state() -> None:
+    """EventBlockRead stores space/address/data and updates status_text."""
+    from comm_proto.fcsp import FcspAddressSpace
+    from imgui_bundle_esc_config.worker import EventBlockRead
+
+    state = create_app_state()
+    state.apply_event(EventBlockRead(space=int(FcspAddressSpace.DSHOT_IO), address=0x20, data=b"\xAA\xBB\xCC"))
+
+    assert state.block_read_space == int(FcspAddressSpace.DSHOT_IO)
+    assert state.block_read_address == 0x20
+    assert state.block_read_data == b"\xAA\xBB\xCC"
+    assert "0x11" in state.status_text  # DSHOT_IO = 0x11
+
+
+def test_app_state_event_block_written_updates_state() -> None:
+    """EventBlockWritten stores space/address/size/verified and updates status_text."""
+    from comm_proto.fcsp import FcspAddressSpace
+    from imgui_bundle_esc_config.worker import EventBlockWritten
+
+    state = create_app_state()
+    state.apply_event(EventBlockWritten(space=int(FcspAddressSpace.PWM_IO), address=0x00, size=4, verified=True))
+
+    assert state.block_write_space == int(FcspAddressSpace.PWM_IO)
+    assert state.block_write_size == 4
+    assert state.block_write_verified is True
+    assert "verified" in state.status_text
+
+
+def test_fcsp_summary_lines_include_capability_native_and_block_io_context() -> None:
+    """AppState summary helpers should emit concise, operator-readable FCSP status strings."""
+    from comm_proto.fcsp import FcspAddressSpace
+    from imgui_bundle_esc_config.worker import EventBlockRead, EventBlockWritten
+
+    state = create_app_state()
+    state.fcsp_connected_peer = "Tang9k FC"
+    state.fcsp_cap_esc_count = 4
+    state.fcsp_cap_feature_flags = 0x3
+    state.fcsp_cap_descriptions = ["Supported ops bitmap: FF FF"]
+    state.fcsp_supports_pt_enter = True
+    state.fcsp_supports_set_motor_speed = False
+    state.fcsp_supports_read_block = True
+    state.fcsp_supports_write_block = True
+    state.fcsp_supports_esc_eeprom_space = True
+    state.fcsp_supports_pwm_io_space = True
+    state.fcsp_supports_dshot_io_space = False
+    state.fcsp_supports_flash_space = True
+
+    state.apply_event(EventBlockRead(space=int(FcspAddressSpace.DSHOT_IO), address=0x20, data=b"\xAA\xBB"))
+    state.apply_event(EventBlockWritten(space=int(FcspAddressSpace.PWM_IO), address=0x10, size=4, verified=True))
+
+    caps_summary = state.fcsp_capability_summary_line()
+    native_summary = state.fcsp_native_paths_summary_line()
+    block_summary = state.fcsp_last_block_io_summary_line()
+
+    assert "peer=Tang9k FC" in caps_summary
+    assert "ESCs=4" in caps_summary
+    assert "Flags=0x3" in caps_summary
+
+    assert "PT=yes" in native_summary
+    assert "MOTOR=no" in native_summary
+    assert "SETTINGS-R=yes" in native_summary
+    assert "DSHOT_IO=no" in native_summary
+    assert "FLASH=yes" in native_summary
+
+    assert "read(space=0x11" in block_summary
+    assert "write(space=0x10" in block_summary
+    assert "verified=yes" in block_summary

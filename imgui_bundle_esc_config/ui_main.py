@@ -16,7 +16,7 @@ from .app_state import AppState
 from .diagnostics_export import export_diagnostics_bundle
 from .runtime_logging import get_runtime_log_path
 from .settings_decoder import build_settings_payload, get_visible_fields, validate_setting_edits
-from .worker import (
+from .backend_models import (
     CommandCancelOperation,
     CommandConnect,
     CommandDownloadFirmware,
@@ -31,8 +31,8 @@ from .worker import (
     CommandSetMotorSpeed,
     CommandWriteSettings,
     CommandRefreshPorts,
-    WorkerController,
 )
+from .worker import WorkerController
 
 
 DSHOT_UI_MIN = 1000
@@ -90,6 +90,18 @@ def _status_metrics_text(
         f"Motors: {motor_count}  "
         f"v{APP_VERSION}"
     )
+
+
+def _status_layout_params(content_width: float) -> tuple[bool, int, int, int]:
+    """Return status-bar compact flag and truncation limits for current width.
+
+    Returns: (compact, status_chars, port_chars, metrics_chars)
+    """
+    compact = float(content_width) < 760.0
+    status_chars = 42 if compact else 120
+    port_chars = 28 if compact else 80
+    metrics_chars = 70 if compact else 120
+    return compact, status_chars, port_chars, metrics_chars
 
 
 def drain_worker_events(state: AppState, controller: WorkerController) -> None:
@@ -192,6 +204,26 @@ def render_connection_panel(state: AppState, controller: WorkerController) -> No
             "no" if state.fcsp_supports_write_block is False else
             "<unknown>"
         )
+        support_pt_enter = (
+            "yes" if state.fcsp_supports_pt_enter is True else
+            "no" if state.fcsp_supports_pt_enter is False else
+            "<unknown>"
+        )
+        support_pt_exit = (
+            "yes" if state.fcsp_supports_pt_exit is True else
+            "no" if state.fcsp_supports_pt_exit is False else
+            "<unknown>"
+        )
+        support_esc_scan = (
+            "yes" if state.fcsp_supports_esc_scan is True else
+            "no" if state.fcsp_supports_esc_scan is False else
+            "<unknown>"
+        )
+        support_set_motor_speed = (
+            "yes" if state.fcsp_supports_set_motor_speed is True else
+            "no" if state.fcsp_supports_set_motor_speed is False else
+            "<unknown>"
+        )
         support_esc_eeprom = (
             "yes" if state.fcsp_supports_esc_eeprom_space is True else
             "no" if state.fcsp_supports_esc_eeprom_space is False else
@@ -213,16 +245,52 @@ def render_connection_panel(state: AppState, controller: WorkerController) -> No
             "<unknown>"
         )
         imgui.text(
+            f"Control: PT_ENTER={support_pt_enter} PT_EXIT={support_pt_exit} "
+            f"ESC_SCAN={support_esc_scan} SET_MOTOR_SPEED={support_set_motor_speed}"
+        )
+        imgui.text(
             f"Support: GET_LINK_STATUS={support_get_link} READ_BLOCK={support_read_block} "
             f"WRITE_BLOCK={support_write_block} ESC_EEPROM={support_esc_eeprom}"
         )
         imgui.text(
             f"Spaces: FLASH={support_flash} PWM_IO={support_pwm_io} DSHOT_IO={support_dshot_io}"
         )
+        native_settings_read = state.fcsp_settings_read_native_available()
+        native_settings_write = state.fcsp_settings_write_native_available()
+        native_pt = state.fcsp_passthrough_native_available()
+        native_motor = state.fcsp_motor_speed_native_available()
+        native_pwm = state.fcsp_pwm_io_native_available()
+        native_dshot = state.fcsp_dshot_io_native_available()
+        native_flash = state.fcsp_flash_native_available()
+
+        def _native_label(value: bool | None) -> str:
+            return "yes" if value is True else "no" if value is False else "<unknown>"
+
+        imgui.text(
+            f"Native paths: PT={_native_label(native_pt)} MOTOR={_native_label(native_motor)} "
+            f"SETTINGS-R={_native_label(native_settings_read)} SETTINGS-W={_native_label(native_settings_write)}"
+        )
+        imgui.text(
+            f"Block paths: PWM_IO={_native_label(native_pwm)} DSHOT_IO={_native_label(native_dshot)} "
+            f"FLASH={_native_label(native_flash)}"
+        )
         link_flags_text = f"0x{state.fcsp_link_flags:04X}" if state.fcsp_link_flags is not None else "<n/a>"
         link_drops_text = str(state.fcsp_link_rx_drops) if state.fcsp_link_rx_drops is not None else "<n/a>"
         link_crc_text = str(state.fcsp_link_crc_err) if state.fcsp_link_crc_err is not None else "<n/a>"
         imgui.text(f"Link: flags={link_flags_text} drops={link_drops_text} crc={link_crc_text}")
+        if state.block_read_data is not None:
+            preview = bytes(state.block_read_data[:8]).hex(" ").upper()
+            imgui.text(
+                f"Last READ_BLOCK: space=0x{int(state.block_read_space or 0):02X} "
+                f"addr=0x{int(state.block_read_address or 0):04X} len={len(state.block_read_data)}"
+            )
+            imgui.text(f"Read preview: {preview}")
+        if state.block_write_size is not None:
+            verify_label = "yes" if state.block_write_verified else "no"
+            imgui.text(
+                f"Last WRITE_BLOCK: space=0x{int(state.block_write_space or 0):02X} "
+                f"addr=0x{int(state.block_write_address or 0):04X} len={int(state.block_write_size)} verified={verify_label}"
+            )
         can_refresh_link = state.connected and state.fcsp_supports_get_link_status is not False
         if not can_refresh_link:
             imgui.begin_disabled()
@@ -367,9 +435,7 @@ def render_imgui_debug_windows(state: AppState) -> None:
 def render_status_bar(state: AppState) -> None:
     imgui.separator()
     content_width = float(imgui.get_content_region_avail()[0])
-    compact = content_width < 760.0
-    status_chars = 42 if compact else 120
-    port_chars = 28 if compact else 80
+    compact, status_chars, port_chars, metrics_chars = _status_layout_params(content_width)
 
     # Row 1: connection status row
     if state.connected:
@@ -416,7 +482,7 @@ def render_status_bar(state: AppState) -> None:
         motor_count=motor_count,
         compact=compact,
     )
-    imgui.text(_ellipsize(metrics, 120 if not compact else 70))
+    imgui.text(_ellipsize(metrics, metrics_chars))
 
 
 def render_passthrough_panel(state: AppState, controller: WorkerController) -> None:
@@ -1034,13 +1100,9 @@ def render_diagnostics_panel(state: AppState) -> None:
     if state.connection_protocol_mode == "optimized_tang9k":
         imgui.separator()
         imgui.text("FCSP Capability Snapshot")
-        imgui.text(f"Peer: {state.fcsp_connected_peer or '<unknown>'}")
-        imgui.text(
-            "Capabilities: "
-            f"{len(state.fcsp_cap_descriptions)} entry(ies), "
-            f"ESCs={state.fcsp_cap_esc_count if state.fcsp_cap_esc_count is not None else '<n/a>'}, "
-            f"Flags={f'0x{state.fcsp_cap_feature_flags:X}' if state.fcsp_cap_feature_flags is not None else '<n/a>'}"
-        )
+        imgui.text_wrapped(state.fcsp_capability_summary_line())
+        imgui.text_wrapped(state.fcsp_native_paths_summary_line())
+        imgui.text_wrapped(state.fcsp_last_block_io_summary_line())
         imgui.text(
             "Link: "
             f"flags={f'0x{state.fcsp_link_flags:04X}' if state.fcsp_link_flags is not None else '<n/a>'} "

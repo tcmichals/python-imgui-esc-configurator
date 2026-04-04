@@ -253,6 +253,7 @@ class FirmwareCatalogClient:
         self._fetch_bytes = fetch_bytes or _default_fetch_bytes
         self._cache_dir = Path(cache_dir).expanduser() if cache_dir else Path.home() / ".cache" / "pico-msp-bridge" / "esc-configurator" / "firmware"
         self.last_refresh_used_cache = False
+        self.last_snapshot_load_error: str | None = None
 
     def _get_cache_dir(self) -> Path:
         self._cache_dir.mkdir(parents=True, exist_ok=True)
@@ -336,6 +337,15 @@ class FirmwareCatalogClient:
     def _catalog_snapshot_path(self) -> Path:
         return self._get_cache_dir() / self._CATALOG_CACHE_FILE
 
+    def _quarantine_corrupt_snapshot(self, path: Path) -> None:
+        timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+        quarantine_path = path.with_name(f"{path.stem}.corrupt.{timestamp}{path.suffix}")
+        try:
+            path.rename(quarantine_path)
+        except OSError:
+            # Best-effort only; if this fails, keep behavior non-fatal.
+            pass
+
     def save_catalog_snapshot(self, snapshot: FirmwareCatalogSnapshot) -> None:
         """Persist a catalog snapshot to disk for offline fallback."""
         try:
@@ -366,6 +376,7 @@ class FirmwareCatalogClient:
 
     def load_catalog_snapshot(self) -> FirmwareCatalogSnapshot | None:
         """Load a previously saved catalog snapshot from disk, or return None."""
+        self.last_snapshot_load_error = None
         path = self._catalog_snapshot_path()
         if not path.exists():
             return None
@@ -400,7 +411,9 @@ class FirmwareCatalogClient:
                 releases_by_source=releases_by_source,
                 layouts_by_source={s: () for s in releases_by_source},
             )
-        except (OSError, json.JSONDecodeError, KeyError, TypeError, ValueError):
+        except (OSError, json.JSONDecodeError, KeyError, TypeError, ValueError) as exc:
+            self.last_snapshot_load_error = str(exc) or type(exc).__name__
+            self._quarantine_corrupt_snapshot(path)
             return None
 
     def _get_bluejay_releases(self) -> list[FirmwareRelease]:
