@@ -78,8 +78,14 @@ Use this file as the single high-level tracker. Keep tasks scoped, testable, and
   - [ ] Compact-layout regression coverage where harness allows
   - [ ] Offline cache startup UX coverage (missing/corrupt cache scenarios)
 
-- [ ] Firmware catalog UX
-  - [ ] Keep stale-cache warning + one-click refresh behavior covered by tests
+- [ ] Asyncio Kernel Transition (Phase C)
+  - [x] Implement `AsyncWorkerController` with `pyserial-asyncio`
+  - [x] Establish **Thread-Safe Bridge** (`call_soon_threadsafe`) for UI/Kernel boundary
+  - [x] Implement multiplexed dispatcher for solicited vs unsolicited frames
+  - [x] Port MSP, 4-Way, and FCSP clients to async
+  - [x] Establish Performance Test Bench (`tests/benchmark_async.py`)
+  - [ ] Integrate into main `app.py` as default backend
+  - [ ] Final hardware validation on Tang Nano 20K
 
 ## 3) Documentation tasks
 

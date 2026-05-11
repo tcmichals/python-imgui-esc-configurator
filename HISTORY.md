@@ -21,6 +21,43 @@ For each meaningful commit or milestone, append a new entry with:
 
 ---
 
+## 2026-05-11
+
+### Commit
+
+- `a82b02b` (main) - Finalized Hackster article and roadmap.
+- `feat/asyncio-kernel` (branch) - Initial prototype of the async kernel.
+
+### Scope
+
+- Finalized the **Hackster.io ESC Article**, detailing the transition from web to Python and the pivot from MSP to FCSP.
+- Established the **feat/asyncio-kernel** branch to begin the high-performance refactor.
+- Created `imgui_bundle_esc_config/async_worker.py` as the foundation for the new asynchronous backend.
+- **Thread-Safe Bridge Architecture:** Implemented `loop.call_soon_threadsafe` for UI-to-Kernel command submission. This ensures the ImGui thread can safely reschedule work into the `asyncio` event loop without shared-memory locks or race conditions.
+- Updated `ROADMAP.md` and `GITHUB_TODO.md` with **Phase C: Asyncio & Scalability**.
+- Clarified the "Whole Kernel asyncio" focus to maximize performance for high-rate telemetry.
+
+### Key areas touched
+
+- `HACKSTER_ARTICLE.md`
+- `ROADMAP.md`
+- `GITHUB_TODO.md`
+- `imgui_bundle_esc_config/requirements.txt`
+- `imgui_bundle_esc_config/async_worker.py` (New)
+
+### Validation
+
+- Article reviewed for technical accuracy and impersonal tone.
+- Requirements updated with `pyserial-asyncio`.
+- `AsyncWorkerController` prototype verified for basic structure and loop control.
+
+### Notes
+
+- The move to `asyncio` targets the entire backend kernel to eliminate context-switching overhead and improve determinism for high-rate data streams.
+- Legacy `WorkerController` remains in `main` for stability until the async refactor is feature-complete.
+
+---
+
 ## 2026-04-03
 
 ### Commit

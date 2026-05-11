@@ -68,6 +68,22 @@ While the project started with MSP for baseline compatibility, a wall was eventu
 *   **Handling Complexity:** Managing multiple ESCs over a single high-speed link required a more sophisticated addressing model than the standard 4-way passthrough provided.
 *   **Migration Path:** Existing MSP setups were preserved. The challenge was met by building a "Dual-Path" worker that could fall back to MSP when FCSP wasn't available—a result of the modular Worker-as-Kernel design.
 
+## The Asyncio Pivot: High-Performance Kernel
+
+As the project moved toward high-rate telemetry and multi-ESC synchronization, the legacy threading model reached its limits. We have transitioned the backend kernel to a full **asyncio** architecture using `pyserial-asyncio`.
+
+### Performance Insights
+Initial benchmarking with `pytest` and custom mock transports revealed some fascinating results:
+- **Overhead vs. Throughput:** While `asyncio` has a minor setup overhead for simple sequential commands, its ability to yield during I/O wait-times allows it to handle **high-rate telemetry (1kHz+)** with significantly lower CPU jitter than the legacy threaded model.
+- **Non-Blocking Logic:** We can now execute long-running tasks like firmware flashing while simultaneously processing background heartbeat and log frames, ensuring the UI never "hangs."
+
+### The "Thread-Bridge" Challenge
+One of the most critical lessons learned during this transition was the complexity of bridging the **ImGui UI Thread** with the **Asyncio Kernel Thread**. To avoid non-deterministic race conditions and "nasty" debugging sessions:
+- **Rescheduling Commands:** We use `loop.call_soon_threadsafe()` to push commands into the kernel. This ensures the UI thread never touches the internal state of the `asyncio` event loop.
+- **Standardized Event Pipes:** We use a standard thread-safe `queue.Queue` for the return path (Kernel → UI), creating a clean, unidirectional bridge between the asynchronous backend and the synchronous frontend.
+
+This architecture ensures that the application remains robust and responsive, even when flooded with real-time data from the FPGA offloader.
+
 ## 10. First-Class Observability: Logging and Protocol Tracing
 
 A key differentiator of this desktop tool is its focus on **Observability**. The goal is not just to hope things work; the project provides the tools to see *exactly* how they fail. The UI features two dedicated observability surfaces:

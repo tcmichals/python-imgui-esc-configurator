@@ -236,6 +236,7 @@ Use message passing rather than ad-hoc shared mutable state.
 Required communication paths:
 
 - **Command queue**: UI → worker
+    - **Requirement**: Use `loop.call_soon_threadsafe` when submitting commands from the ImGui thread to the `asyncio` worker loop. This ensures that the command queue remains purely internal to the async thread, avoiding shared-memory concurrency bugs.
 - **Event queue**: worker → UI
 
 Optional:
