@@ -52,6 +52,13 @@
 	- [ ] validate optimized-mode runtime behavior beyond discovery handshake
 	- [x] confirm Windows operator setup path is current and documented
 
+## Future Architecture
+
+- [ ] Refactor `WorkerController` to use `asyncio` for non-blocking serial communication
+	- [ ] Replace threading/queue model with async event loop
+	- [ ] Implement `async` serial transport
+	- [ ] Optimize telemetry stream handling for high-rate FPGA targets
+
 ## Docs
 
 - [x] Update README / status docs to reflect current FCSP progress accurately

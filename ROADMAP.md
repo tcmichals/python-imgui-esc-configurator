@@ -41,6 +41,14 @@ Deliver a full Python ImGui ESC-configurator replacement first, then migrate the
 6. 🔄 **Protothreads**: Implement stackless concurrency model (`pt.h`) across both targets.
 7. ⏳ End-to-end validation on **Tang Nano 20K** and **Pico**.
 
+## Phase C — Asyncio & Scalability (Future Roadmap)
+
+1. ⏳ **Full Kernel Asyncio Transition**: Refactor the entire `WorkerController` (the backend kernel) and transport layers to use `asyncio`.
+   - Replace the legacy `threading.Thread` + `queue.Queue` model with a unified asynchronous event loop.
+   - Use `pyserial-asyncio` or a custom async transport for non-blocking, high-throughput serial I/O.
+   - Maximize performance by allowing the kernel to handle multiple concurrent protocol streams (MSP/FCSP/Telemetry) without context-switching overhead.
+2. ⏳ **High-Rate Telemetry**: Leverage `asyncio` to handle high-bandwidth telemetry streams from the FPGA without blocking the UI or worker logic.
+
 ### Performance & Design Intent
 
 - **Pico (P2)**: Best for complex processing and rapid software iteration. Uses dual M0+ cores and PIO for flexible but moderately jittered signal generation.
