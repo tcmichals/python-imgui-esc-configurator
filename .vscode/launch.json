@@ -1,0 +1,21 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Run ImGui ESC Configurator",
+      "type": "python",
+      "request": "launch",
+      "module": "imgui_bundle_esc_config.app",
+      "console": "integratedTerminal",
+      "justMyCode": false
+    },
+    {
+      "name": "Run Headless CLI",
+      "type": "python",
+      "request": "launch",
+      "module": "imgui_bundle_esc_config.headless_cli",
+      "console": "integratedTerminal",
+      "justMyCode": false
+    }
+  ]
+}
