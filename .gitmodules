@@ -1,3 +1,4 @@
 [submodule "rt-fc-offloader"]
 	path = rt-fc-offloader
 	url = ../rt-fc-offloader
+	branch = main
