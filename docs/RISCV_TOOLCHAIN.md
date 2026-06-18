@@ -1,3 +1,21 @@
+---
+title: RISC-V Toolchain Manual Installation Guide
+doc_type: guide
+status: active
+audience:
+  - human
+  - developer
+canonicality: supporting
+subsystem: firmware
+purpose: Document the manual installation process for the xPack RISC-V GCC toolchain to maintain a deterministic build environment.
+related_docs:
+  - ../README.md
+  - README.md
+  - DOC_METADATA_STANDARD.md
+  - BUILD_TUTORIAL.md
+verified_on: 2026-06-17
+---
+
 # RISC-V Toolchain: Manual Installation
 
 To ensure a deterministic and package-manager-free build environment, we use a manual installation of the **xPack RISC-V GCC** toolchain.

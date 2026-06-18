@@ -113,6 +113,12 @@ The params decode as:
 python3 serialMSP.py --port /dev/ttyUSB1 fourway --passthrough --cmds test_alive init_flash read --esc 0 --address 0x0000 --length 64
 ```
 
+**Read settings/EEPROM after init (Silabs/Bluejay ESCs):**
+Note: EEPROM settings are mapped at address `0x7C00` (decimal `31744`). Standard Bluejay length is 128 bytes, BLHeli_S is 48 bytes. Querying address `0x0000` for EEPROM will return errors/timeouts.
+```bash
+python3 serialMSP.py --port /dev/ttyUSB1 fourway --passthrough --cmds test_alive init_flash read_eeprom --esc 0 --address 0x7C00 --length 128
+```
+
 ### Troubleshooting
 
 **No response to init_flash:**

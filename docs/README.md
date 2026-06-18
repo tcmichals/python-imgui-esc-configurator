@@ -72,12 +72,11 @@ For most implementation prompts, provide documents in this order:
 
 ## Supporting docs
 
-- `architecture.md` — high-level architecture notes.
-- `implementation_details.md` — implementation discussion/history.
 - `PINOUT.md` — pin mapping reference.
 - `CODE_DESIGN.md` — runtime ownership, arbitration, passthrough lifecycle, and key file responsibilities.
 - `MSP_MESSAGE_FLOW.md` — MSP command/reply expectations relevant to configurator interactions.
 - `MSP_DSHOT_HARDWARE_REQUIREMENTS.md` — concrete performance budgets, FIFO/IRQ guidance, and 60/100 MHz feasibility guardrails.
+- `../imgui_bundle_esc_config/DESIGN_REQUIREMENTS.md` — Python ImGui desktop configurator detailed requirements, design, and specifications.
 
 ## Notes
 
@@ -110,5 +109,3 @@ Use:
 Use:
 
 - `SYSTEM_HOW_IT_WORKS.md`
-- `architecture.md`
-- `implementation_details.md`

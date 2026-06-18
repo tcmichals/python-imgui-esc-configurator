@@ -1,3 +1,22 @@
+---
+title: Hardware-in-the-Loop Smoke Checklist
+doc_type: standard
+status: active
+audience:
+  - human
+  - developer
+  - operator
+canonicality: canonical
+subsystem: imgui-esc-config
+purpose: Provide a repeatable, operator-facing checklist for validating parity-critical configurator workflows on real hardware.
+related_docs:
+  - ../README.md
+  - README.md
+  - DOC_METADATA_STANDARD.md
+  - PARITY_SIGNOFF_TEMPLATE.md
+verified_on: 2026-06-17
+---
+
 # Hardware-in-the-Loop Smoke Checklist
 
 Purpose:

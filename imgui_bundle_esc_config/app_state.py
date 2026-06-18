@@ -35,6 +35,7 @@ from .backend_models import (
     EventFirmwareFlashed,
     EventFourWayIdentity,
     EventLog,
+    EventMspIdentity,
     EventMspStats,
     EventMotorCount,
     EventOperationCancelled,
@@ -134,8 +135,10 @@ class AppState:
     settings_last_write_size: int = 0
     settings_last_write_verified: bool = False
     settings_hex_preview: str = ""
-    decoded_settings: DecodedSettings | None = None
-    settings_edit_values: dict[str, int | str | bytes] = field(default_factory=dict)
+    all_decoded_settings: dict[int, DecodedSettings] = field(default_factory=dict)
+    all_settings_edit_values: dict[int, dict[str, int | str | bytes]] = field(default_factory=dict)
+    all_settings_raw_bytes: dict[int, bytes] = field(default_factory=dict)
+    active_esc_view_index: int = 0
     firmware_catalog: FirmwareCatalogSnapshot | None = None
     firmware_catalog_from_cache: bool = False
     firmware_release_search: str = ""
@@ -256,10 +259,13 @@ class AppState:
             return False
 
     def settings_dirty(self) -> bool:
-        decoded = self.decoded_settings
-        if decoded is None:
+        if not self.all_decoded_settings:
             return False
-        return self.settings_edit_values != get_editable_field_values(decoded)
+        for motor_idx, decoded in self.all_decoded_settings.items():
+            edits = self.all_settings_edit_values.get(motor_idx, {})
+            if edits != get_editable_field_values(decoded):
+                return True
+        return False
 
     # ------------------------------------------------------------------
     # FCSP capability-gated action availability
@@ -370,14 +376,16 @@ class AppState:
         return sorted(self.firmware_catalog.releases_by_source.keys())
 
     def target_firmware_family(self) -> str:
-        if self.decoded_settings is None:
+        active_settings = self.all_decoded_settings.get(self.active_esc_view_index)
+        if active_settings is None:
             return ""
-        return self.decoded_settings.family
+        return active_settings.family
 
     def target_layout_name(self) -> str:
-        if self.decoded_settings is None:
+        active_settings = self.all_decoded_settings.get(self.active_esc_view_index)
+        if active_settings is None:
             return ""
-        return self.decoded_settings.layout_name
+        return active_settings.layout_name
 
     def firmware_release_compatibility(self, release: FirmwareRelease):
         return describe_release_compatibility(
@@ -400,7 +408,8 @@ class AppState:
             sources = self.firmware_sources()
             source = sources[0] if sources else ""
         releases = self.firmware_catalog.releases_by_source.get(source, ())
-        if self.decoded_settings is None:
+        active_settings = self.all_decoded_settings.get(self.active_esc_view_index)
+        if active_settings is None:
             return releases
         compatible = tuple(release for release in releases if self.firmware_release_compatibility(release).compatible)
         return compatible if compatible else ()
@@ -507,12 +516,12 @@ class AppState:
     def recommended_next_step(self) -> str:
         if not self.connected:
             return "Connect to the bridge using a detected port or manual port override."
-        if not self.passthrough_active:
-            return "Choose the target motor and enter passthrough to talk to the ESC."
-        if self.detected_esc_count <= 0:
-            return "Scan for ESCs to confirm the active target before reading settings."
-        if self.decoded_settings is None:
-            return "Read settings to load the structured editor for the active ESC."
+        if not self.passthrough_active and not self.all_decoded_settings:
+            return "Read settings to scan all ESCs and load their settings."
+        if self.detected_esc_count <= 0 and not self.all_decoded_settings:
+            return "Scan for ESCs or Read settings."
+        if not self.all_decoded_settings:
+            return "Read settings to load the structured editor for the connected ESCs."
         if self.firmware_catalog is None:
             return "Refresh the firmware catalog if you want to compare available firmware versions."
         return "Review settings or browse firmware releases for the selected ESC family."
@@ -553,6 +562,15 @@ class AppState:
             self.dshot_safety_armed = False
             self.last_error = ""
             self.status_text = f"Connected to {event.port} @ {event.baudrate}"
+            return
+
+        if isinstance(event, EventMspIdentity):
+            if event.fc_variant == "BTFL":
+                # Set to 0 to enable auto-detection from the MCU descriptor table.
+                # The worker extracts the MCU signature from init_flash and looks up
+                # the correct EEPROM offset (e.g. 0x1A00 for EFM8BB10x/BB21x,
+                # 0x7C00 for AM32 ARM). Users can still override via the UI.
+                self.settings_rw_address = 0
             return
 
         if isinstance(event, EventDisconnected):
@@ -600,6 +618,10 @@ class AppState:
             self.settings_address = 0
             self.settings_size = 0
             self.settings_loaded_motor = -1
+            self.all_decoded_settings.clear()
+            self.all_settings_edit_values.clear()
+            self.all_settings_raw_bytes.clear()
+            self.active_esc_view_index = 0
             self.settings_last_write_size = 0
             self.settings_last_write_verified = False
             self.settings_hex_preview = ""
@@ -802,8 +824,11 @@ class AppState:
             self.settings_loaded_motor = int(getattr(event, "motor_index", self.passthrough_motor))
             preview = event.data[:32]
             self.settings_hex_preview = preview.hex(" ").upper()
-            self.decoded_settings = decode_settings_payload(event.data, start_address=event.address)
-            self.settings_edit_values = get_editable_field_values(self.decoded_settings)
+            decoded = decode_settings_payload(event.data, start_address=event.address)
+            self.all_decoded_settings[self.settings_loaded_motor] = decoded
+            self.all_settings_edit_values[self.settings_loaded_motor] = get_editable_field_values(decoded)
+            self.all_settings_raw_bytes[self.settings_loaded_motor] = event.data
+            self.active_esc_view_index = self.settings_loaded_motor
             if self.firmware_catalog is not None:
                 target_family = self.target_firmware_family()
                 if target_family and target_family in self.firmware_catalog.releases_by_source:
@@ -811,7 +836,7 @@ class AppState:
                 filtered_releases = self.visible_firmware_releases()
                 if filtered_releases and not any(release.key == self.selected_firmware_release_key for release in filtered_releases):
                     self.selected_firmware_release_key = filtered_releases[0].key
-            self.status_text = f"Settings read complete: {len(event.data)} byte(s)"
+            self.status_text = f"Settings read complete: {len(event.data)} byte(s) from motor {self.settings_loaded_motor + 1}"
             return
 
         if isinstance(event, EventSettingsWritten):

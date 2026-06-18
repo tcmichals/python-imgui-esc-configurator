@@ -15,7 +15,7 @@ from . import APP_VERSION
 from .app_state import AppState
 from .diagnostics_export import export_diagnostics_bundle
 from .runtime_logging import get_runtime_log_path
-from .settings_decoder import build_settings_payload, get_visible_fields, validate_setting_edits
+from .settings_decoder import build_settings_payload, get_visible_fields, validate_setting_edits, get_editable_field_values
 from .backend_models import (
     CommandCancelOperation,
     CommandConnect,
@@ -28,8 +28,10 @@ from .backend_models import (
     CommandGetFcspLinkStatus,
     CommandRefreshFirmwareCatalog,
     CommandReadSettings,
+    CommandReadAllSettings,
     CommandSetMotorSpeed,
     CommandWriteSettings,
+    CommandWriteAllSettings,
     CommandRefreshPorts,
 )
 from .worker import WorkerController
@@ -489,35 +491,19 @@ def render_passthrough_panel(state: AppState, controller: WorkerController) -> N
     imgui.text("ESC Link")
 
     motor_count = max(1, min(16, int(state.motor_count)))
-    if state.selected_motor_index >= motor_count:
-        state.selected_motor_index = motor_count - 1
 
-    if motor_count > 1:
-        preview = f"ESC {state.selected_motor_index + 1} of {motor_count}"
-        if imgui.begin_combo("Target ESC for Read Settings", preview):
-            for esc_index in range(motor_count):
-                clicked, _selected = imgui.selectable(
-                    f"ESC {esc_index + 1}",
-                    esc_index == state.selected_motor_index,
-                )
-                if clicked:
-                    state.selected_motor_index = esc_index
-            imgui.end_combo()
-    else:
-        state.selected_motor_index = 0
-        imgui.text("Target ESC for Read Settings: ESC 1")
-
-    imgui.text_disabled("Used when Read Settings auto-enters passthrough.")
+    imgui.text_disabled("Read Settings will scan and read from all connected ESCs.")
 
     read_settings_enabled = state.connected
     if not read_settings_enabled:
         imgui.begin_disabled()
-    if imgui.button("Read Settings"):
+    if imgui.button("Read Settings##passthrough"):
+        state.all_decoded_settings.clear()
+        state.all_settings_edit_values.clear()
         controller.enqueue(
-            CommandReadSettings(
+            CommandReadAllSettings(
                 length=state.settings_rw_length,
                 address=state.settings_rw_address,
-                motor_index=state.selected_motor_index,
             )
         )
     if not read_settings_enabled:
@@ -602,7 +588,9 @@ def render_settings_panel(state: AppState, controller: WorkerController) -> None
 
     if not identity_enabled:
         imgui.begin_disabled()
-    if imgui.button("Read Settings"):
+    if imgui.button("Read Settings##settings"):
+        state.all_decoded_settings.clear()
+        state.settings_edit_values = {}
         controller.enqueue(
             CommandReadSettings(
                 length=state.settings_rw_length,
@@ -621,116 +609,139 @@ def render_settings_panel(state: AppState, controller: WorkerController) -> None
     imgui.text(f"Verified: {'YES' if state.settings_last_write_verified else 'NO'}")
     imgui.text_wrapped(f"Settings Preview: {state.settings_hex_preview or '<n/a>'}")
 
-    decoded = state.decoded_settings
-    if decoded is not None:
-        validation_errors = validate_setting_edits(decoded, state.settings_edit_values)
-        visible_fields = get_visible_fields(decoded, state.settings_edit_values)
+    if not state.all_decoded_settings:
+        return
 
-        imgui.separator()
-        imgui.text("Decoded Settings")
-        imgui.text(f"Family: {decoded.family}")
-        imgui.same_line()
-        imgui.text(f"Firmware: {decoded.firmware_name or '<unknown>'}")
-        imgui.same_line()
-        imgui.text(f"Layout: {decoded.layout_name or '<unknown>'}")
-        imgui.text(f"MCU: {decoded.mcu_name or '<unknown>'}")
-        imgui.same_line()
-        imgui.text(f"Revision: {decoded.layout_revision if decoded.layout_revision is not None else '<n/a>'}")
-        imgui.same_line()
-        imgui.text(f"Visible: {len(visible_fields)} / {len(decoded.fields)}")
-        imgui.same_line()
-        imgui.text(f"Dirty: {'YES' if state.settings_dirty() else 'NO'}")
-        if validation_errors:
-            imgui.text_colored((1.0, 0.4, 0.4, 1.0), f"Validation Errors: {len(validation_errors)}")
-            for error in validation_errors:
-                imgui.text_wrapped(f"- {error}")
+    validation_errors = []
+    for motor_idx, decoded in state.all_decoded_settings.items():
+        edits = state.all_settings_edit_values.get(motor_idx, {})
+        validation_errors.extend(validate_setting_edits(decoded, edits))
 
-        if validation_errors or not state.settings_dirty():
-            imgui.begin_disabled()
-        if imgui.button("Write Decoded Settings"):
-            try:
-                payload = build_settings_payload(decoded, state.settings_edit_values)
+    if validation_errors or not state.settings_dirty():
+        imgui.begin_disabled()
+    if imgui.button("Write All Settings"):
+        try:
+            payloads = {}
+            old_payloads = {}
+            for motor_idx, decoded in state.all_decoded_settings.items():
+                edits = state.all_settings_edit_values.get(motor_idx, {})
+                if edits != get_editable_field_values(decoded):
+                    payloads[motor_idx] = build_settings_payload(decoded, edits)
+                    old_payloads[motor_idx] = state.all_settings_raw_bytes.get(motor_idx, b"")
+            
+            if payloads:
                 controller.enqueue(
-                    CommandWriteSettings(
-                        address=decoded.start_address,
-                        data=payload,
+                    CommandWriteAllSettings(
+                        address=state.settings_address,
+                        payloads=payloads,
+                        old_payloads=old_payloads,
                         verify_readback=True,
                     )
                 )
-            except ValueError as exc:
-                state.last_error = str(exc)
-                state.append_log("warning", str(exc))
-        if validation_errors or not state.settings_dirty():
-            imgui.end_disabled()
+        except ValueError as exc:
+            state.last_error = str(exc)
+            state.append_log("warning", str(exc))
+    if validation_errors or not state.settings_dirty():
+        imgui.end_disabled()
 
-        _SETTINGS_GROUP_ORDER = [
-            "general", "individual", "beacon", "safety", "brake", "advanced", "identity",
-        ]
-        by_group: dict[str, list] = defaultdict(list)
-        for _f in visible_fields:
-            by_group[_f.group or "general"].append(_f)
-        # any group not in the canonical order goes at the end
-        all_groups = list(_SETTINGS_GROUP_ORDER)
-        for _g in by_group:
-            if _g not in all_groups:
-                all_groups.append(_g)
+    if validation_errors:
+        imgui.text_colored((1.0, 0.4, 0.4, 1.0), f"Validation Errors: {len(validation_errors)}")
+        for error in validation_errors:
+            imgui.text_wrapped(f"- {error}")
 
-        def _render_settings_field_row(field, state: AppState) -> None:  # noqa: ANN001
-            imgui.table_next_row()
-            imgui.table_set_column_index(0)
-            imgui.text_unformatted(field.name)
-            imgui.table_set_column_index(1)
-            imgui.text_unformatted(field.label)
-            imgui.table_set_column_index(2)
-            imgui.text_unformatted(field.field_type)
-            imgui.table_set_column_index(3)
-            if not field.editable:
-                imgui.text_wrapped(field.display_value)
-                return
-            current_value = state.settings_edit_values.get(field.name, field.raw_value)
-            if field.field_type == "bool":
-                changed, value = imgui.checkbox(f"##{field.name}", bool(int(current_value)))
-                if changed:
-                    state.settings_edit_values[field.name] = 1 if value else 0
-            elif field.field_type == "enum" and field.options:
-                selected_index = 0
-                for _idx, _opt in enumerate(field.options):
-                    if _opt.value == int(current_value):
-                        selected_index = _idx
-                        break
-                preview = field.options[selected_index].label
-                if imgui.begin_combo(f"##{field.name}", preview):
-                    for _idx, _opt in enumerate(field.options):
-                        clicked, _ = imgui.selectable(_opt.label, _idx == selected_index)
-                        if clicked:
-                            state.settings_edit_values[field.name] = _opt.value
-                    imgui.end_combo()
-            elif field.field_type == "number":
-                changed, value = imgui.input_int(f"##{field.name}", int(current_value))
-                if changed:
-                    max_value = (1 << (field.size * 8)) - 1
-                    state.settings_edit_values[field.name] = min(max(value, 0), max_value)
-            else:
-                imgui.text_wrapped(field.display_value)
+    if imgui.begin_tab_bar("esc_tabs"):
+        for motor_idx, decoded in sorted(state.all_decoded_settings.items()):
+            edits = state.all_settings_edit_values.setdefault(motor_idx, {})
+            visible_fields = get_visible_fields(decoded, edits)
 
-        for _group_name in all_groups:
-            _group_fields = by_group.get(_group_name, [])
-            if not _group_fields:
-                continue
-            _header_label = _group_name.replace("_", " ").title()
-            if imgui.collapsing_header(
-                f"{_header_label} ({len(_group_fields)})##group_{_group_name}",
-                imgui.TreeNodeFlags_.default_open,
-            ):
-                if imgui.begin_table(f"settings_{_group_name}", 4):
-                    imgui.table_setup_column("Field")
-                    imgui.table_setup_column("Label")
-                    imgui.table_setup_column("Type")
-                    imgui.table_setup_column("Value / Editor")
-                    imgui.table_headers_row()
-                    for _field in _group_fields:
-                        _render_settings_field_row(_field, state)
-                    imgui.end_table()
+            is_dirty = edits != get_editable_field_values(decoded)
+            tab_label = f"ESC {motor_idx + 1}" + (" *" if is_dirty else "")
+
+            if imgui.begin_tab_item(tab_label)[0]:
+                state.active_esc_view_index = motor_idx
+                
+                imgui.text("Decoded Settings")
+                imgui.text(f"Family: {decoded.family}")
+                imgui.same_line()
+                imgui.text(f"Firmware: {decoded.firmware_name or '<unknown>'}")
+                imgui.same_line()
+                imgui.text(f"Layout: {decoded.layout_name or '<unknown>'}")
+                imgui.text(f"MCU: {decoded.mcu_name or '<unknown>'}")
+                imgui.same_line()
+                imgui.text(f"Revision: {decoded.layout_revision if decoded.layout_revision is not None else '<n/a>'}")
+                imgui.same_line()
+                imgui.text(f"Visible: {len(visible_fields)} / {len(decoded.fields)}")
+                
+                _SETTINGS_GROUP_ORDER = [
+                    "general", "individual", "beacon", "safety", "brake", "advanced", "identity",
+                ]
+                by_group: dict[str, list] = defaultdict(list)
+                for _f in visible_fields:
+                    by_group[_f.group or "general"].append(_f)
+                all_groups = list(_SETTINGS_GROUP_ORDER)
+                for _g in by_group:
+                    if _g not in all_groups:
+                        all_groups.append(_g)
+
+                def _render_settings_field_row(field, state: AppState, motor_idx: int) -> None:  # noqa: ANN001
+                    imgui.table_next_row()
+                    imgui.table_set_column_index(0)
+                    imgui.text_unformatted(field.name)
+                    imgui.table_set_column_index(1)
+                    imgui.text_unformatted(field.label)
+                    imgui.table_set_column_index(2)
+                    imgui.text_unformatted(field.field_type)
+                    imgui.table_set_column_index(3)
+                    if not field.editable:
+                        imgui.text_wrapped(field.display_value)
+                        return
+                    current_value = state.all_settings_edit_values[motor_idx].get(field.name, field.raw_value)
+                    if field.field_type == "bool":
+                        changed, value = imgui.checkbox(f"##{field.name}_{motor_idx}", bool(int(current_value)))
+                        if changed:
+                            state.all_settings_edit_values[motor_idx][field.name] = 1 if value else 0
+                    elif field.field_type == "enum" and field.options:
+                        selected_index = 0
+                        for _idx, _opt in enumerate(field.options):
+                            if _opt.value == int(current_value):
+                                selected_index = _idx
+                                break
+                        preview = field.options[selected_index].label
+                        if imgui.begin_combo(f"##{field.name}_{motor_idx}", preview):
+                            for _idx, _opt in enumerate(field.options):
+                                clicked, _ = imgui.selectable(_opt.label, _idx == selected_index)
+                                if clicked:
+                                    state.all_settings_edit_values[motor_idx][field.name] = _opt.value
+                            imgui.end_combo()
+                    elif field.field_type == "number":
+                        changed, value = imgui.input_int(f"##{field.name}_{motor_idx}", int(current_value))
+                        if changed:
+                            max_value = (1 << (field.size * 8)) - 1
+                            state.all_settings_edit_values[motor_idx][field.name] = min(max(value, 0), max_value)
+                    else:
+                        imgui.text_wrapped(field.display_value)
+
+                for _group_name in all_groups:
+                    _group_fields = by_group.get(_group_name, [])
+                    if not _group_fields:
+                        continue
+                    _header_label = _group_name.replace("_", " ").title()
+                    if imgui.collapsing_header(
+                        f"{_header_label} ({len(_group_fields)})##group_{_group_name}_{motor_idx}",
+                        imgui.TreeNodeFlags_.default_open,
+                    ):
+                        if imgui.begin_table(f"settings_{_group_name}_{motor_idx}", 4):
+                            imgui.table_setup_column("Field")
+                            imgui.table_setup_column("Label")
+                            imgui.table_setup_column("Type")
+                            imgui.table_setup_column("Value / Editor")
+                            imgui.table_headers_row()
+                            for _field in _group_fields:
+                                _render_settings_field_row(_field, state, motor_idx)
+                            imgui.end_table()
+                
+                imgui.end_tab_item()
+        imgui.end_tab_bar()
 
     if imgui.collapsing_header("Advanced Raw EEPROM"):
         changed_write_hex, write_hex = imgui.input_text(
@@ -751,6 +762,7 @@ def render_settings_panel(state: AppState, controller: WorkerController) -> None
                         address=state.settings_rw_address,
                         data=write_bytes,
                         verify_readback=True,
+                        old_data=state.settings_raw_bytes,
                     )
                 )
             except ValueError as exc:
@@ -808,7 +820,7 @@ def render_firmware_panel(state: AppState, controller: WorkerController) -> None
         imgui.end_combo()
 
     imgui.separator()
-    if state.decoded_settings is not None:
+    if state.all_decoded_settings:
         imgui.text(f"Target Family: {state.target_firmware_family() or '<unknown>'}")
         imgui.same_line()
         imgui.text(f"Target Layout: {state.target_layout_name() or '<unknown>'}")
@@ -821,7 +833,7 @@ def render_firmware_panel(state: AppState, controller: WorkerController) -> None
         imgui.table_headers_row()
 
         for release in releases:
-            compatibility = state.firmware_release_compatibility(release) if state.decoded_settings is not None else None
+            compatibility = state.firmware_release_compatibility(release) if bool(state.all_decoded_settings) else None
             imgui.table_next_row()
             imgui.table_set_column_index(0)
             imgui.text_unformatted(release.name)
@@ -847,7 +859,7 @@ def render_firmware_panel(state: AppState, controller: WorkerController) -> None
         imgui.end_table()
 
     if selected_release is not None:
-        selected_compatibility = state.firmware_release_compatibility(selected_release) if state.decoded_settings is not None else None
+        selected_compatibility = state.firmware_release_compatibility(selected_release) if bool(state.all_decoded_settings) else None
         imgui.separator()
         imgui.text("Selected Release Details")
         imgui.text(f"Family: {selected_release.family}")
@@ -860,18 +872,20 @@ def render_firmware_panel(state: AppState, controller: WorkerController) -> None
 
     imgui.separator()
     imgui.text("Download from Web")
-    target_layout = state.decoded_settings.layout_name if state.decoded_settings is not None else ""
-    target_family = state.decoded_settings.family if state.decoded_settings is not None else ""
+    target_layout = state.target_layout_name() if bool(state.all_decoded_settings) else ""
+    target_family = state.target_firmware_family() if bool(state.all_decoded_settings) else ""
     active_esc = int(state.passthrough_motor)
     settings_esc = int(state.settings_loaded_motor)
-    settings_match_active = state.decoded_settings is not None and settings_esc == active_esc
+    settings_match_active = bool(state.all_decoded_settings) and settings_esc == active_esc
     imgui.text(f"Active ESC: {active_esc + 1}")
     imgui.same_line()
     settings_label = str(settings_esc + 1) if settings_esc >= 0 else "<none>"
     imgui.text(f"Settings from ESC: {settings_label}")
-    if state.decoded_settings is not None and not settings_match_active:
+    if bool(state.all_decoded_settings) and not settings_match_active:
         imgui.text_colored((1.0, 0.6, 0.35, 1.0), "Settings do not match active ESC. Re-read settings before firmware operations.")
         if imgui.button("Read Settings for Active ESC"):
+            state.all_decoded_settings.clear()
+            state.settings_edit_values = {}
             controller.enqueue(
                 CommandReadSettings(
                     length=state.settings_rw_length,
@@ -892,7 +906,7 @@ def render_firmware_panel(state: AppState, controller: WorkerController) -> None
 
     download_compatible = (
         selected_release is not None
-        and state.decoded_settings is not None
+        and bool(state.all_decoded_settings)
         and settings_match_active
         and bool(target_layout)
         and state.firmware_release_compatibility(selected_release).compatible
@@ -966,9 +980,9 @@ def render_firmware_panel(state: AppState, controller: WorkerController) -> None
     if not state.firmware_local_family:
         state.firmware_local_family = current_family
 
-    target_family = state.decoded_settings.family if state.decoded_settings is not None else "<read settings first>"
+    target_family = state.target_firmware_family() if bool(state.all_decoded_settings) else "<read settings first>"
     selected_family = state.selected_firmware_family() or "<unset>"
-    compatibility_ok = state.decoded_settings is not None and target_family == selected_family
+    compatibility_ok = bool(state.all_decoded_settings) and target_family == selected_family
     compatibility_color = (0.45, 0.95, 0.55, 1.0) if compatibility_ok else (1.0, 0.55, 0.35, 1.0)
     compatibility_text = "compatible" if compatibility_ok else "not compatible yet"
     imgui.text(f"Target ESC Family: {target_family}")
@@ -987,7 +1001,7 @@ def render_firmware_panel(state: AppState, controller: WorkerController) -> None
     flash_enabled = (
         state.connected
         and state.passthrough_active
-        and state.decoded_settings is not None
+        and bool(state.all_decoded_settings)
         and settings_match_active
         and bool(state.firmware_local_file_path.strip())
         and compatibility_ok

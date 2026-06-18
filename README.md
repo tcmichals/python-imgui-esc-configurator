@@ -9,9 +9,9 @@ canonicality: canonical
 subsystem: python
 purpose: Provide a concise product-focused entry point for the Python ESC configurator repository.
 related_docs:
-  - REQUIREMENTS.md
-  - GITHUB_TODO.md
+  - TASKS.md
   - imgui_bundle_esc_config/DESIGN_REQUIREMENTS.md
+  - AI_PROMPT_GUIDE.md
   - ../rt-fc-offloader/docs/FCSP_PROTOCOL.md
 verified_on: 2026-04-03
 ---
@@ -89,7 +89,7 @@ Current Python ImGui ESC configurator UI:
 
 Windows operator screenshot:
 
-- Pending capture on a live Windows operator station. (Tracked in `GITHUB_TODO.md`.)
+- Pending capture on a live Windows operator station. (Tracked in `TASKS.md`.)
 
 ## Windows operator setup (explicit path)
 
@@ -108,12 +108,14 @@ Then activate `.\.venv\Scripts\Activate.ps1` again.
 
 ## Start here
 
-- `REQUIREMENTS.md` — clear repository requirements
-- `GITHUB_TODO.md` — active GitHub task list
+- `TASKS.md` — active task checklist & high-level roadmap
+- `AI_PROMPT_GUIDE.md` — entry point for prompting and AI agent routing
 - `HISTORY.md` — running technical history (changes + pytest verification)
+- `docs/SYSTEM_HOW_IT_WORKS.md` — system architecture, ESC passthrough protocol, 4-way command routing, and MCU descriptor reference
+- `docs/BLHELI_PASSTHROUGH.md` — passthrough transition notes, troubleshooting, protocol constraints, and settings memory map
 - `docs/HIL_SMOKE_CHECKLIST.md` — operator hardware smoke checklist
 - `docs/PARITY_SIGNOFF_TEMPLATE.md` — GO/NO-GO replacement parity decision template
-- `imgui_bundle_esc_config/DESIGN_REQUIREMENTS.md` — detailed application requirements
+- `imgui_bundle_esc_config/DESIGN_REQUIREMENTS.md` — detailed application requirements & protocol specifications
 
 ## Classroom / reference-implementation goal
 

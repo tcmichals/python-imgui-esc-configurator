@@ -11,7 +11,6 @@ purpose: Track feature-by-feature parity between the web esc-configurator flow a
 related_docs:
   - DESIGN_REQUIREMENTS.md
   - WEBAPP_FEATURE_CACHE.md
-  - PROMPT.md
 verified_on: 2026-04-03
 ---
 
@@ -67,6 +66,8 @@ Status legend:
 - ✅ EEPROM read + decoded settings table
 - ✅ Editable baseline fields (enum/bool/number)
 - ✅ Write + verify path
+- ✅ Multi-ESC batch read settings (Read All Settings)
+- ✅ Multi-ESC batch write settings (Write All Settings)
 - ✅ Bluejay STARTUP_MELODY field (128-byte, read-only raw bytes display)
 - ✅ Bluejay STARTUP_MELODY_WAIT_MS field (2-byte editable uint16)
 - ✅ Descriptor/rules parity
@@ -74,12 +75,19 @@ Status legend:
   - ✅ sanitize/validation parity (Bluejay threshold ordering enforced)
   - ✅ LOW_RPM_POWER_PROTECTION + STARTUP_BEEP + RAMPUP_RPM_POWER_PROTECTION added (safety/beacon groups)
   - ✅ Settings table grouped by category with collapsible headers
+- ✅ MCU Descriptor Parity
+  - ✅ MCU signature extraction from `init_flash`
+  - ✅ Dynamic `eeprom_offset`, `page_size`, and lock-byte lookup via `mcu_descriptors.py` (matching `Silabs.js` / `Arm.js`)
+  - ✅ Auto-detect settings address (replaces hardcoded `0x7C00` BTFL fallback)
+  - ✅ Silabs Page Erase (`0x39`) command sent before settings write
+  - ✅ Silabs EFM8 lock-byte validation check
 
 ## Firmware workflow
 
 - ✅ Firmware catalog baseline
 - ✅ End-to-end flash/verify UX parity
   - ✅ worker flash init/erase/write/verify/reset baseline
+  - ⏳ Silabs bootloader brick-protection staging sequence (writing failsafe, flashing high pages, then low pages)
   - ✅ local-file flashing baseline with compatibility gating + progress
   - ✅ remote image download path from catalog selection
   - ✅ multi-ESC batch flash (Flash All N ESCs)

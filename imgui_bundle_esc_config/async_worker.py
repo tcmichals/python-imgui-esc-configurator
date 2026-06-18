@@ -24,18 +24,21 @@ from .backend_models import (
     CommandRefreshPorts,
     CommandReadFourWayIdentity,
     CommandReadSettings,
+    CommandReadAllSettings,
     CommandScanEscs,
     CommandSetMotorSpeed,
     CommandShutdown,
     CommandFlashEsc,
     CommandFlashAllEscs,
     CommandWriteSettings,
+    CommandWriteAllSettings,
     EventConnected,
     EventDisconnected,
     EventEscScanResult,
     EventFirmwareFlashed,
     EventFourWayIdentity,
     EventLog,
+    EventMspIdentity,
     EventOperationCancelled,
     EventPassthroughState,
     EventPortsUpdated,
@@ -90,6 +93,8 @@ from comm_proto.fcsp import (
     build_write_block_payload,
 )
 
+from .mcu_descriptors import get_mcu_by_signature, get_default_mcu_for_interface_mode, compute_erase_page_number
+
 PROTOCOL_MODE_MSP = "msp"
 PROTOCOL_MODE_OPTIMIZED_TANG9K = "optimized_tang9k"
 
@@ -127,6 +132,7 @@ class AsyncWorkerController:
         
         # Capability cache
         self._fcsp_caps: Any = None
+        self._fc_variant: str | None = None
 
     def start(self) -> None:
         """Start the async worker loop."""
@@ -213,12 +219,12 @@ class AsyncWorkerController:
         elif isinstance(command, CommandSetMotorSpeed):
             await self._handle_set_motor_speed(command)
             
-        elif isinstance(command, CommandReadFourWayIdentity):
-            await self._handle_read_fourway_identity()
-            
+        elif isinstance(command, CommandReadAllSettings):
+            await self._handle_read_all_settings(command)
+        elif isinstance(command, CommandWriteAllSettings):
+            await self._handle_write_all_settings(command)
         elif isinstance(command, CommandReadSettings):
             await self._handle_read_settings(command)
-            
         elif isinstance(command, CommandWriteSettings):
             await self._handle_write_settings(command)
             
@@ -309,9 +315,13 @@ class AsyncWorkerController:
                     raise RuntimeError("No response to PT_ENTER")
             else:
                 # Legacy MSP path
+                if self._fc_variant == "BTFL":
+                    passthrough_payload = bytes([0xFF, motor_index & 0xFF])
+                else:
+                    passthrough_payload = bytes([0x00, motor_index & 0xFF])
                 response = await self._msp_client.send_msp(
                     MSP_SET_PASSTHROUGH,
-                    bytes([0x00, motor_index & 0xFF]),
+                    passthrough_payload,
                     timeout=1.5
                 )
                 if response and response.frame:
@@ -383,15 +393,63 @@ class AsyncWorkerController:
             v_resp = await self._fourway_client.send(FOURWAY_CMDS["get_version"])
             n_resp = await self._fourway_client.send(FOURWAY_CMDS["get_name"])
             
-            name = bytes(n_resp.params).decode("ascii", errors="replace").rstrip("\x00 ")
+            interface_name = bytes(n_resp.params).decode("ascii", errors="replace").rstrip("\x00 ")
+            protocol_version = v_resp.params[0] if v_resp.params else 0
+            interface_version = "" 
+            
             self._emit(EventFourWayIdentity(
-                interface_name=name,
-                protocol_version=v_resp.params[0] if v_resp.params else 0,
-                interface_version="" # TODO
+                interface_name=interface_name,
+                protocol_version=protocol_version,
+                interface_version=interface_version
             ))
-            self._emit(EventLog("info", f"4-way identity: {name}", source="4way"))
+            self._emit(
+                EventLog(
+                    "info",
+                    f"4-way identity read: name='{interface_name}' protocol={protocol_version} interface={interface_version}",
+                )
+            )
         except Exception as exc:
             self._emit(EventLog("error", f"Failed to read 4-way identity: {exc}", source="4way"))
+
+    async def _handle_read_all_settings(self, command: CommandReadAllSettings) -> None:
+        if self._msp_client is None and self._fcsp_client is None:
+            return
+        motor_count = int(command.motor_count) if command.motor_count is not None else self._motor_count
+        if motor_count <= 0:
+            self._emit(EventError(message=f"Cannot read all settings: invalid motor count {motor_count}"))
+            return
+        
+        self._emit(EventLog("info", f"Batch reading settings for {motor_count} ESC(s)..."))
+        for i in range(motor_count):
+            try:
+                await self._handle_read_settings(CommandReadSettings(
+                    length=command.length,
+                    address=command.address,
+                    motor_index=i
+                ))
+            except Exception as exc:
+                self._emit(EventLog("error", f"Failed to read settings for ESC {i+1}: {exc}"))
+
+    async def _handle_write_all_settings(self, command: CommandWriteAllSettings) -> None:
+        if self._msp_client is None and self._fcsp_client is None:
+            return
+        
+        if not command.payloads:
+            self._emit(EventLog("info", "No settings to write in batch operation."))
+            return
+            
+        self._emit(EventLog("info", f"Batch writing settings for {len(command.payloads)} ESC(s)..."))
+        for motor_index, payload in command.payloads.items():
+            try:
+                old_payload = command.old_payloads.get(motor_index, b"")
+                await self._handle_write_settings(CommandWriteSettings(
+                    data=payload,
+                    address=command.address,
+                    verify_readback=command.verify_readback,
+                    old_data=old_payload
+                ))
+            except Exception as exc:
+                self._emit(EventLog("error", f"Failed to write settings for ESC {motor_index+1}: {exc}"))
 
     async def _handle_read_settings(self, command: CommandReadSettings) -> None:
         if not self._msp_client:
@@ -417,8 +475,44 @@ class AsyncWorkerController:
                 if not self._passthrough_active:
                     await self._handle_enter_passthrough(CommandEnterPassthrough(motor_index=command.motor_index))
                 
-                response = await self._fourway_client.send(FOURWAY_CMDS["read_eeprom"], address=address, params=bytes([length & 0xFF]))
+                # Initialize 4-way connection to ESC
+                self._emit(EventLog("info", f"Initializing 4-way connection to ESC {command.motor_index}...", source="4way"))
+                init_resp = await self._fourway_client.send(
+                    FOURWAY_CMDS["init_flash"],
+                    params=bytes([command.motor_index & 0x03]),
+                    timeout=5.0
+                )
+                if init_resp.ack != 0:
+                    raise RuntimeError(f"device init flash failed with ACK {init_resp.ack_str}")
+
+                # Resolve MCU-specific EEPROM address from init_flash signature
+                cmd = FOURWAY_CMDS["read_eeprom"]
+                interface_mode = 0
+                mcu_descriptor = None
+                if init_resp.params and len(init_resp.params) >= 4:
+                    interface_mode = init_resp.params[3]
+                    mcu_signature = int.from_bytes(init_resp.params[0:2], "big")
+                    mcu_descriptor = get_mcu_by_signature(mcu_signature)
+                    if mcu_descriptor is None:
+                        mcu_descriptor = get_default_mcu_for_interface_mode(interface_mode)
+                        if mcu_descriptor:
+                            self._emit(EventLog("info", f"Unknown MCU signature 0x{mcu_signature:04X}, using default for mode {interface_mode}: {mcu_descriptor.name}", source="4way"))
+                    else:
+                        self._emit(EventLog("info", f"MCU identified: {mcu_descriptor.name} (sig 0x{mcu_signature:04X}, eeprom @ 0x{mcu_descriptor.eeprom_offset:04X})", source="4way"))
+
+                    if interface_mode in (1, 4):  # 1 = SiLabs, 4 = ARM
+                        cmd = FOURWAY_CMDS["read"]
+                        self._emit(EventLog("info", f"Silabs/ARM bootloader detected (mode {interface_mode}). Using read (0x3A) for flash-mapped settings.", source="4way"))
+
+                # Override address from MCU descriptor if available and user address is 0 (auto-detect)
+                effective_address = address
+                if mcu_descriptor and address == 0:
+                    effective_address = mcu_descriptor.eeprom_offset
+                    self._emit(EventLog("info", f"Auto-detected settings address: 0x{effective_address:04X} (from MCU descriptor)", source="4way"))
+
+                response = await self._fourway_client.send(cmd, address=effective_address, params=bytes([length & 0xFF]))
                 data = bytes(response.params)
+                address = effective_address
             
             self._emit(EventSettingsLoaded(data=data, address=address, motor_index=command.motor_index))
             self._emit(EventLog("info", f"Read {len(data)} bytes of settings from 0x{address:04X}", source="esc"))
@@ -444,7 +538,76 @@ class AsyncWorkerController:
                 if not self._passthrough_active:
                     await self._handle_enter_passthrough(CommandEnterPassthrough(motor_index=0)) # Default
                 
-                await self._fourway_client.send(FOURWAY_CMDS["write_eeprom"], address=address, params=data)
+                # Initialize 4-way connection to ESC
+                self._emit(EventLog("info", f"Initializing 4-way connection to ESC {self._passthrough_motor}...", source="4way"))
+                init_resp = await self._fourway_client.send(
+                    FOURWAY_CMDS["init_flash"],
+                    params=bytes([self._passthrough_motor & 0x03]),
+                    timeout=5.0
+                )
+                if init_resp.ack != 0:
+                    raise RuntimeError(f"device init flash failed with ACK {init_resp.ack_str}")
+
+                # Resolve MCU-specific parameters from init_flash signature
+                cmd = FOURWAY_CMDS["write_eeprom"]
+                interface_mode = 0
+                mcu_descriptor = None
+                if init_resp.params and len(init_resp.params) >= 4:
+                    interface_mode = init_resp.params[3]
+                    mcu_signature = int.from_bytes(init_resp.params[0:2], "big")
+                    mcu_descriptor = get_mcu_by_signature(mcu_signature)
+                    if mcu_descriptor is None:
+                        mcu_descriptor = get_default_mcu_for_interface_mode(interface_mode)
+
+                    if interface_mode in (1, 4):  # 1 = SiLabs, 4 = ARM
+                        cmd = FOURWAY_CMDS["write"]
+                        self._emit(EventLog("info", f"Silabs/ARM bootloader detected (mode {interface_mode}). Using write (0x3B) for flash-mapped settings.", source="4way"))
+
+                # Override address from MCU descriptor if available and user address is 0 (auto-detect)
+                effective_address = address
+                if mcu_descriptor and address == 0:
+                    effective_address = mcu_descriptor.eeprom_offset
+                    self._emit(EventLog("info", f"Auto-detected settings address: 0x{effective_address:04X} (from MCU descriptor)", source="4way"))
+
+                # Silabs ESCs require a page erase before writing to flash-mapped settings.
+                # This matches the JS reference: FourWay.js writeSettings() line 731.
+                # ARM ESCs do NOT require the erase step.
+                if interface_mode == 1 and mcu_descriptor:
+                    erase_page = compute_erase_page_number(mcu_descriptor.eeprom_offset, mcu_descriptor.page_size)
+                    self._emit(EventLog("info", f"Erasing settings page {erase_page} before write (Silabs flash requirement).", source="4way"))
+                    erase_resp = await self._fourway_client.send(
+                        FOURWAY_CMDS["page_erase"],
+                        address=erase_page,
+                        params=bytes([1]),
+                        timeout=5.0
+                    )
+                    if erase_resp.ack != 0:
+                        raise RuntimeError(f"erase settings page failed with ACK {erase_resp.ack_str}")
+
+                if interface_mode == 2 and command.old_data and len(command.old_data) >= len(data):
+                    # Atmel: write only changed bytes using differential spans
+                    self._emit(EventLog("info", "Atmel ESC detected. Using differential span writes.", source="4way"))
+                    pos = 0
+                    while pos < len(data):
+                        offset = pos
+                        while pos < len(data) and data[pos] != command.old_data[pos]:
+                            pos += 1
+                        
+                        if offset == pos:
+                            pos += 1
+                            continue
+                        
+                        span_data = data[offset:pos]
+                        span_address = effective_address + offset
+                        resp = await self._fourway_client.send(cmd, address=span_address, params=span_data)
+                        if resp.ack != 0:
+                            raise RuntimeError(f"write span failed with ACK {resp.ack_str}")
+                else:
+                    resp = await self._fourway_client.send(cmd, address=effective_address, params=data)
+                    if resp.ack != 0:
+                        raise RuntimeError(f"write settings failed with ACK {resp.ack_str}")
+
+                address = effective_address
             
             self._emit(EventSettingsWritten(address=address, size=len(data), verified=True))
             self._emit(EventLog("info", f"Wrote {len(data)} bytes of settings to 0x{address:04X}", source="esc"))
@@ -588,7 +751,8 @@ class AsyncWorkerController:
 
         variant = await safe_read(MSP_FC_VARIANT, "FC variant")
         if variant:
-            self._emit(EventLog("info", f"FC variant: {safe_ascii(variant)}", source="msp"))
+            self._fc_variant = safe_ascii(variant)
+            self._emit(EventLog("info", f"FC variant: {self._fc_variant}", source="msp"))
 
         fc_version = await safe_read(MSP_FC_VERSION, "FC version")
         if len(fc_version) >= 3:
@@ -600,6 +764,19 @@ class AsyncWorkerController:
             self._emit(EventLog("info", f"Board info: {board_name}", source="msp"))
 
         # ... additional probe steps follow similar pattern ...
+        api_str = f"{api[0]}.{api[1]}.{api[2]}" if len(api) >= 3 else None
+        variant_str = self._fc_variant
+        version_str = f"{fc_version[0]}.{fc_version[1]}.{fc_version[2]}" if len(fc_version) >= 3 else None
+        board_name = safe_ascii(board[:8]) if len(board) >= 4 else board.hex().upper() if board else None
+
+        self._emit(
+            EventMspIdentity(
+                api_version=api_str,
+                fc_variant=variant_str,
+                fc_version=version_str,
+                board_name=board_name,
+            )
+        )
         self._emit(EventLog("info", "MSP identity probe complete", source="msp"))
 
     async def _probe_fcsp_handshake(self) -> None:

@@ -21,6 +21,34 @@ For each meaningful commit or milestone, append a new entry with:
 
 ---
 
+## 2026-06-17
+
+### Commit
+
+- (main) - Solved Betaflight ESC passthrough entry and 4-way initialization.
+
+### Scope
+
+- **Betaflight Passthrough Entry Fix**: Probed the flight controller firmware variant on connect and dynamically selected the `MSP_SET_PASSTHROUGH` (command 245) mode payload byte. Used `0xFF` (MSP_PASSTHROUGH_ESC_4WAY) for Betaflight vs `0x00` (SerialEsc) for the custom Pico offloader firmware, enabling the DSHOT line to transition high.
+- **4-Way Interface Initialization Fix**: Resolved configuration read/write timeouts/errors where the flight controller returned `ack=INVALID_CMD` (0x02). The host now executes `cmd_DeviceInitFlash` (`0x37`) with the active motor/ESC index as a parameter prior to sending device-specific commands (`read_eeprom` and `write_eeprom`), successfully initiating the bridge-to-ESC C2/serial connection.
+- **Offloader Firmware Alignment**: Modified `rt-fc-offloader/firmware/common/msp.cpp` to accept both `0x00` and `0xFF` as valid mode bytes for maximum compatibility.
+
+### Key areas touched
+
+- `imgui_bundle_esc_config/worker.py`
+- `imgui_bundle_esc_config/async_worker.py`
+- `imgui_bundle_esc_config/DESIGN_REQUIREMENTS.md`
+- `docs/BLHELI_PASSTHROUGH.md`
+- `unitTests/test_imgui_worker.py`
+- `rt-fc-offloader/firmware/common/msp.cpp`
+- `rt-fc-offloader/GITHUB_TODO.md`
+
+### Validation
+
+- `.venv/bin/pytest unitTests/` -> `209 passed in 8.61s`
+
+---
+
 ## 2026-05-11
 
 ### Commit

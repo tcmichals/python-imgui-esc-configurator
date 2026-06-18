@@ -29,6 +29,7 @@ from imgui_bundle_esc_config.worker import (
     EventSettingsLoaded,
     EventSettingsWritten,
     EventFourWayIdentity,
+    EventLog,
 )
 
 
@@ -1051,3 +1052,85 @@ def test_fcsp_summary_lines_include_capability_native_and_block_io_context() -> 
     assert "read(space=0x11" in block_summary
     assert "write(space=0x10" in block_summary
     assert "verified=yes" in block_summary
+
+
+# ---------------------------------------------------------------------------
+# Offline cache startup UX scenarios
+# ---------------------------------------------------------------------------
+
+def test_startup_flow_with_missing_cache() -> None:
+    """If startup has no cached snapshot and no load error, state has no catalog and no warning logs."""
+    state = create_app_state()
+    # Simulate: worker.load_cached_firmware_catalog_snapshot() returns None,
+    # and worker.get_cached_firmware_catalog_load_error() returns None.
+    cached_snapshot = None
+    cache_load_error = None
+
+    if cached_snapshot is not None:
+        state.apply_event(EventFirmwareCatalogLoaded(snapshot=cached_snapshot, from_cache=True))
+    if cache_load_error:
+        state.apply_event(
+            EventLog(
+                level="warning",
+                message="Firmware catalog cache was corrupt/unreadable and has been quarantined; a live refresh will rebuild it.",
+                source="firmware",
+            )
+        )
+
+    assert state.firmware_catalog is None
+    # Initial log is "Application initialized"
+    assert len(state.logs) == 1
+    assert state.logs[0].message == "Application initialized"
+
+
+def test_startup_flow_with_corrupt_cache_quarantined_log() -> None:
+    """If startup has a corrupt cache file, a quarantine warning log event is appended to AppState."""
+    state = create_app_state()
+    # Simulate: worker.load_cached_firmware_catalog_snapshot() returns None,
+    # but worker.get_cached_firmware_catalog_load_error() returns a quarantined message.
+    cached_snapshot = None
+    cache_load_error = "JSONDecodeError: Expecting value at line 1 column 1"
+
+    if cached_snapshot is not None:
+        state.apply_event(EventFirmwareCatalogLoaded(snapshot=cached_snapshot, from_cache=True))
+    if cache_load_error:
+        state.apply_event(
+            EventLog(
+                level="warning",
+                message="Firmware catalog cache was corrupt/unreadable and has been quarantined; a live refresh will rebuild it.",
+                source="firmware",
+            )
+        )
+
+    assert state.firmware_catalog is None
+    # We should have the initial log plus the quarantine warning
+    assert len(state.logs) == 2
+    assert state.logs[1].level == "WARNING"
+    assert "quarantined" in state.logs[1].message
+    assert state.logs[1].source == "FIRMWARE"
+
+
+def test_startup_flow_with_valid_cache_loads_immediately() -> None:
+    """If startup has a valid cache file, catalog is loaded immediately with from_cache=True."""
+    state = create_app_state()
+    # Simulate: worker.load_cached_firmware_catalog_snapshot() returns a snapshot.
+    cached_snapshot = _make_snapshot()
+    cache_load_error = None
+
+    if cached_snapshot is not None:
+        state.apply_event(EventFirmwareCatalogLoaded(snapshot=cached_snapshot, from_cache=True))
+    if cache_load_error:
+        state.apply_event(
+            EventLog(
+                level="warning",
+                message="Firmware catalog cache was corrupt/unreadable and has been quarantined; a live refresh will rebuild it.",
+                source="firmware",
+            )
+        )
+
+    assert state.firmware_catalog is not None
+    assert state.firmware_catalog_from_cache is True
+    assert state.firmware_catalog_total_releases() > 0
+    # No warning logs appended
+    assert len(state.logs) == 1
+

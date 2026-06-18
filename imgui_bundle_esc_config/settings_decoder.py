@@ -208,8 +208,8 @@ BLUEJAY_EXTRA_DESCRIPTORS: tuple[SettingDescriptor, ...] = (
 )
 
 
-def _read_bytes(data: bytes, start_address: int, offset: int, size: int) -> bytes | None:
-    local_start = offset - start_address
+def _read_bytes(data: bytes, offset: int, size: int) -> bytes | None:
+    local_start = offset
     local_end = local_start + size
     if local_start < 0 or local_end > len(data):
         return None
@@ -350,11 +350,11 @@ def decode_settings_payload(data: bytes, start_address: int = 0) -> DecodedSetti
         data = bytes(data)
 
     provisional_name = ""
-    name_raw = _read_bytes(data, start_address, 0x60, 16)
+    name_raw = _read_bytes(data, 0x60, 16)
     if name_raw is not None:
         provisional_name = name_raw.decode("ascii", errors="replace").strip()
 
-    layout_revision_raw = _read_bytes(data, start_address, 0x02, 1)
+    layout_revision_raw = _read_bytes(data, 0x02, 1)
     layout_revision = int(layout_revision_raw[0]) if layout_revision_raw is not None else None
     family = _detect_family(layout_revision, provisional_name)
 
@@ -368,7 +368,7 @@ def decode_settings_payload(data: bytes, start_address: int = 0) -> DecodedSetti
     firmware_name = provisional_name
 
     for descriptor in descriptors:
-        raw = _read_bytes(data, start_address, descriptor.offset, descriptor.size)
+        raw = _read_bytes(data, descriptor.offset, descriptor.size)
         if raw is None:
             continue
         value = _decode_value(descriptor, raw)
@@ -425,7 +425,7 @@ def build_settings_payload(decoded: DecodedSettings, edits: dict[str, int | str 
         field = field_map.get(name)
         if field is None or not field.editable:
             continue
-        local_offset = field.offset - decoded.start_address
+        local_offset = field.offset
         if local_offset < 0 or local_offset + field.size > len(payload):
             continue
         encoded = _encode_scalar(field, value)

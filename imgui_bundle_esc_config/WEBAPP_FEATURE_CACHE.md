@@ -1,31 +1,33 @@
 ---
 title: ESC Configurator Webapp Feature Cache
 doc_type: reference-cache
-status: active
+status: legacy
 audience:
   - ai-agent
   - developer
 canonicality: supporting
 subsystem: imgui-esc-config
-purpose: Cache the web esc-configurator module responsibilities, protocol flow, timeout behavior, and ESC serial packet format to avoid repeated rediscovery.
+purpose: (Superseded by DESIGN_REQUIREMENTS.md) Cache the web esc-configurator module responsibilities, protocol flow, timeout behavior, and ESC serial packet format.
 related_docs:
   - DESIGN_REQUIREMENTS.md
   - README.md
   - ../AI_PROMPT_GUIDE.md
-  - ../../PROMPTS.md
-verified_on: 2026-03-22
+verified_on: 2026-06-17
 source_snapshot:
   - /media/tcmichals/projects/pico/flightcontroller/webapp/esc-configurator/src
 ---
 
-# Web esc-configurator feature cache (for AI parity work)
+# Web esc-configurator feature cache (Superseded)
 
-This file is a **cache reference** for parity work against the web app at:
+> [!WARNING]
+> This cache file is **superseded** by the canonical specification now documented directly in [DESIGN_REQUIREMENTS.md](DESIGN_REQUIREMENTS.md). Use that file as the single source of truth for MSP, 4-Way, and EEPROM settings definitions.
+
+This file remains as supporting reference context for the original web app codebase structure:
 
 - `https://esc-configurator.com/`
 - source snapshot used: local clone at `/media/tcmichals/projects/pico/flightcontroller/webapp/esc-configurator`
 
-Use this to avoid repeatedly re-parsing module responsibilities.
+Use this to understand original JavaScript file locations:
 
 ## Architecture ownership map
 

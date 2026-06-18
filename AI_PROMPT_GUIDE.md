@@ -10,7 +10,6 @@ subsystem: python
 purpose: Route humans and AI agents to the correct Python subtree, active target, and prompt context.
 related_docs:
 	- ../README.md
-	- ../PROMPTS.md
 	- ../docs/DOC_METADATA_STANDARD.md
 	- imgui_bundle_esc_config/DESIGN_REQUIREMENTS.md
 verified_on: 2026-03-22
@@ -64,7 +63,6 @@ Canonical docs in this subtree:
 
 - `imgui_bundle_esc_config/DESIGN_REQUIREMENTS.md`
 - `imgui_bundle_esc_config/README.md`
-- `imgui_bundle_esc_config/PROMPT.md`
 - `imgui_bundle_esc_config/WEBAPP_FEATURE_CACHE.md`
 
 ### `MSP/`

@@ -1,3 +1,22 @@
+---
+title: Parity Sign-off Template
+doc_type: standard
+status: active
+audience:
+  - human
+  - developer
+  - operator
+canonicality: canonical
+subsystem: imgui-esc-config
+purpose: Provide a single operator-facing sign-off checklist and GO/NO-GO criteria for the Python ESC Configurator replacement.
+related_docs:
+  - ../README.md
+  - README.md
+  - DOC_METADATA_STANDARD.md
+  - HIL_SMOKE_CHECKLIST.md
+verified_on: 2026-06-17
+---
+
 # Parity Sign-off Template (Python ESC Configurator vs Web App)
 
 Purpose:

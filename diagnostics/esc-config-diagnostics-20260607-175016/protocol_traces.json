@@ -1,0 +1,2002 @@
+[
+  {
+    "timestamp": "12:43:53",
+    "channel": "MSP",
+    "message": "MSP -> MSP_BATTERY_STATE(130) (read battery state): 24 4D 3C 00 82 82"
+  },
+  {
+    "timestamp": "12:43:53",
+    "channel": "MSP",
+    "message": "MSP <= MSP_BATTERY_STATE(130): 24 4D 3E 09 82 00 00 00 00 00 00 00 00 00 8B"
+  },
+  {
+    "timestamp": "12:43:53",
+    "channel": "MSP",
+    "message": "MSP -> MSP_RC(105) (read rc channels): 24 4D 3C 00 69 69"
+  },
+  {
+    "timestamp": "12:43:53",
+    "channel": "MSP",
+    "message": "MSP <= MSP_RC(105): 24 4D 3E 24 69 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 4D"
+  },
+  {
+    "timestamp": "12:43:53",
+    "channel": "MSP",
+    "message": "MSP -> MSP_ANALOG(110) (read analog): 24 4D 3C 00 6E 6E"
+  },
+  {
+    "timestamp": "12:43:53",
+    "channel": "MSP",
+    "message": "MSP <= MSP_ANALOG(110): 24 4D 3E 07 6E A8 00 00 00 00 00 00 C1"
+  },
+  {
+    "timestamp": "12:43:56",
+    "channel": "MSP",
+    "message": "MSP -> MSP_SET_PASSTHROUGH(245) (enter passthrough motor=0): 24 4D 3C 02 F5 00 00 F7"
+  },
+  {
+    "timestamp": "12:43:56",
+    "channel": "MSP",
+    "message": "MSP <= MSP_SET_PASSTHROUGH(245): 24 4D 3E 01 F5 04 F0"
+  },
+  {
+    "timestamp": "12:43:57",
+    "channel": "4WAY",
+    "message": "4WAY -> get_version(0x31) (read protocol version): 2F 31 00 00 01 00 65 85"
+  },
+  {
+    "timestamp": "12:43:59",
+    "channel": "4WAY",
+    "message": "4WAY -> read_eeprom(0x3D) (read settings): 2F 3D 00 00 01 80 7F 26"
+  },
+  {
+    "timestamp": "12:44:16",
+    "channel": "MSP",
+    "message": "MSP -> MSP_MOTOR(104) (read motor count): 24 4D 3C 00 68 68"
+  },
+  {
+    "timestamp": "12:44:16",
+    "channel": "MSP",
+    "message": "MSP <= MSP_MOTOR(104): 24 4D 3E 08 68 E8 03 E8 03 E8 03 E8 03 60"
+  },
+  {
+    "timestamp": "12:44:16",
+    "channel": "MSP",
+    "message": "MSP -> MSP_API_VERSION(1) (read API version): 24 4D 3C 00 01 01"
+  },
+  {
+    "timestamp": "12:44:16",
+    "channel": "MSP",
+    "message": "MSP <= MSP_API_VERSION(1): 24 4D 3E 03 01 00 01 30 33"
+  },
+  {
+    "timestamp": "12:44:16",
+    "channel": "MSP",
+    "message": "MSP -> MSP_FC_VARIANT(2) (read FC variant): 24 4D 3C 00 02 02"
+  },
+  {
+    "timestamp": "12:44:16",
+    "channel": "MSP",
+    "message": "MSP <= MSP_FC_VARIANT(2): 24 4D 3E 04 02 42 54 46 4C 1A"
+  },
+  {
+    "timestamp": "12:44:16",
+    "channel": "MSP",
+    "message": "MSP -> MSP_FC_VERSION(3) (read FC version): 24 4D 3C 00 03 03"
+  },
+  {
+    "timestamp": "12:44:16",
+    "channel": "MSP",
+    "message": "MSP <= MSP_FC_VERSION(3): 24 4D 3E 03 03 04 05 00 01"
+  },
+  {
+    "timestamp": "12:44:16",
+    "channel": "MSP",
+    "message": "MSP -> MSP_BOARD_INFO(4) (read board info): 24 4D 3C 00 04 04"
+  },
+  {
+    "timestamp": "12:44:16",
+    "channel": "MSP",
+    "message": "MSP <= MSP_BOARD_INFO(4): 24 4D 3E 06 04 50 32 46 43 00 00 65"
+  },
+  {
+    "timestamp": "12:44:16",
+    "channel": "MSP",
+    "message": "MSP -> MSP_BUILD_INFO(5) (read build info): 24 4D 3C 00 05 05"
+  },
+  {
+    "timestamp": "12:44:16",
+    "channel": "MSP",
+    "message": "MSP <= MSP_BUILD_INFO(5): 24 4D 3E 13 05 4D 61 72 20 32 31 20 32 30 32 36 31 32 3A 30 30 3A 30 30 4E"
+  },
+  {
+    "timestamp": "12:44:16",
+    "channel": "MSP",
+    "message": "MSP -> MSP_UID(160) (read UID): 24 4D 3C 00 A0 A0"
+  },
+  {
+    "timestamp": "12:44:16",
+    "channel": "MSP",
+    "message": "MSP <= MSP_UID(160): 24 4D 3E 0C A0 50 49 43 4F 00 00 00 00 00 00 00 00 B9"
+  },
+  {
+    "timestamp": "12:44:16",
+    "channel": "MSP",
+    "message": "MSP -> MSP_STATUS(101) (read status): 24 4D 3C 00 65 65"
+  },
+  {
+    "timestamp": "12:44:16",
+    "channel": "MSP",
+    "message": "MSP <= MSP_STATUS(101): 24 4D 3E 16 65 7D 00 00 00 01 00 00 00 00 00 00 00 00 00 00 00 00 04 00 00 00 00 0B"
+  },
+  {
+    "timestamp": "12:44:16",
+    "channel": "MSP",
+    "message": "MSP -> MSP_FEATURE_CONFIG(36) (read feature config): 24 4D 3C 00 24 24"
+  },
+  {
+    "timestamp": "12:44:16",
+    "channel": "MSP",
+    "message": "MSP <= MSP_FEATURE_CONFIG(36): 24 4D 3E 04 24 00 00 00 00 20"
+  },
+  {
+    "timestamp": "12:44:16",
+    "channel": "MSP",
+    "message": "MSP -> MSP_BATTERY_STATE(130) (read battery state): 24 4D 3C 00 82 82"
+  },
+  {
+    "timestamp": "12:44:16",
+    "channel": "MSP",
+    "message": "MSP <= MSP_BATTERY_STATE(130): 24 4D 3E 09 82 00 00 00 00 00 00 00 00 00 8B"
+  },
+  {
+    "timestamp": "12:44:16",
+    "channel": "MSP",
+    "message": "MSP -> MSP_RC(105) (read rc channels): 24 4D 3C 00 69 69"
+  },
+  {
+    "timestamp": "12:44:16",
+    "channel": "MSP",
+    "message": "MSP <= MSP_RC(105): 24 4D 3E 24 69 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 4D"
+  },
+  {
+    "timestamp": "12:44:16",
+    "channel": "MSP",
+    "message": "MSP -> MSP_ANALOG(110) (read analog): 24 4D 3C 00 6E 6E"
+  },
+  {
+    "timestamp": "12:44:16",
+    "channel": "MSP",
+    "message": "MSP <= MSP_ANALOG(110): 24 4D 3E 07 6E A8 00 00 00 00 00 00 C1"
+  },
+  {
+    "timestamp": "12:44:19",
+    "channel": "MSP",
+    "message": "MSP -> MSP_SET_MOTOR(214) (set motor 0 speed=1012): 24 4D 3C 08 D6 F4 03 00 00 00 00 00 00 29"
+  },
+  {
+    "timestamp": "12:44:19",
+    "channel": "MSP",
+    "message": "MSP <= MSP_SET_MOTOR(214): <no response expected>"
+  },
+  {
+    "timestamp": "12:44:19",
+    "channel": "MSP",
+    "message": "MSP -> MSP_SET_MOTOR(214) (set motor 0 speed=1014): 24 4D 3C 08 D6 F6 03 00 00 00 00 00 00 2B"
+  },
+  {
+    "timestamp": "12:44:19",
+    "channel": "MSP",
+    "message": "MSP <= MSP_SET_MOTOR(214): <no response expected>"
+  },
+  {
+    "timestamp": "12:44:19",
+    "channel": "MSP",
+    "message": "MSP -> MSP_SET_MOTOR(214) (set motor 0 speed=1020): 24 4D 3C 08 D6 FC 03 00 00 00 00 00 00 21"
+  },
+  {
+    "timestamp": "12:44:19",
+    "channel": "MSP",
+    "message": "MSP <= MSP_SET_MOTOR(214): <no response expected>"
+  },
+  {
+    "timestamp": "12:44:19",
+    "channel": "MSP",
+    "message": "MSP -> MSP_SET_MOTOR(214) (set motor 0 speed=1031): 24 4D 3C 08 D6 07 04 00 00 00 00 00 00 DD"
+  },
+  {
+    "timestamp": "12:44:19",
+    "channel": "MSP",
+    "message": "MSP <= MSP_SET_MOTOR(214): <no response expected>"
+  },
+  {
+    "timestamp": "12:44:19",
+    "channel": "MSP",
+    "message": "MSP -> MSP_SET_MOTOR(214) (set motor 0 speed=1043): 24 4D 3C 08 D6 13 04 00 00 00 00 00 00 C9"
+  },
+  {
+    "timestamp": "12:44:19",
+    "channel": "MSP",
+    "message": "MSP <= MSP_SET_MOTOR(214): <no response expected>"
+  },
+  {
+    "timestamp": "12:44:20",
+    "channel": "MSP",
+    "message": "MSP -> MSP_SET_MOTOR(214) (set motor 0 speed=1053): 24 4D 3C 08 D6 1D 04 00 00 00 00 00 00 C7"
+  },
+  {
+    "timestamp": "12:44:20",
+    "channel": "MSP",
+    "message": "MSP <= MSP_SET_MOTOR(214): <no response expected>"
+  },
+  {
+    "timestamp": "12:44:20",
+    "channel": "MSP",
+    "message": "MSP -> MSP_SET_MOTOR(214) (set motor 0 speed=1065): 24 4D 3C 08 D6 29 04 00 00 00 00 00 00 F3"
+  },
+  {
+    "timestamp": "12:44:20",
+    "channel": "MSP",
+    "message": "MSP <= MSP_SET_MOTOR(214): <no response expected>"
+  },
+  {
+    "timestamp": "12:44:20",
+    "channel": "MSP",
+    "message": "MSP -> MSP_SET_MOTOR(214) (set motor 0 speed=1115): 24 4D 3C 08 D6 5B 04 00 00 00 00 00 00 81"
+  },
+  {
+    "timestamp": "12:44:20",
+    "channel": "MSP",
+    "message": "MSP <= MSP_SET_MOTOR(214): <no response expected>"
+  },
+  {
+    "timestamp": "12:44:20",
+    "channel": "MSP",
+    "message": "MSP -> MSP_SET_MOTOR(214) (set motor 0 speed=1145): 24 4D 3C 08 D6 79 04 00 00 00 00 00 00 A3"
+  },
+  {
+    "timestamp": "12:44:20",
+    "channel": "MSP",
+    "message": "MSP <= MSP_SET_MOTOR(214): <no response expected>"
+  },
+  {
+    "timestamp": "12:44:20",
+    "channel": "MSP",
+    "message": "MSP -> MSP_SET_MOTOR(214) (set motor 0 speed=1172): 24 4D 3C 08 D6 94 04 00 00 00 00 00 00 4E"
+  },
+  {
+    "timestamp": "12:44:20",
+    "channel": "MSP",
+    "message": "MSP <= MSP_SET_MOTOR(214): <no response expected>"
+  },
+  {
+    "timestamp": "12:44:20",
+    "channel": "MSP",
+    "message": "MSP -> MSP_SET_MOTOR(214) (set motor 0 speed=1182): 24 4D 3C 08 D6 9E 04 00 00 00 00 00 00 44"
+  },
+  {
+    "timestamp": "12:44:20",
+    "channel": "MSP",
+    "message": "MSP <= MSP_SET_MOTOR(214): <no response expected>"
+  },
+  {
+    "timestamp": "12:44:20",
+    "channel": "MSP",
+    "message": "MSP -> MSP_SET_MOTOR(214) (set motor 0 speed=1184): 24 4D 3C 08 D6 A0 04 00 00 00 00 00 00 7A"
+  },
+  {
+    "timestamp": "12:44:20",
+    "channel": "MSP",
+    "message": "MSP <= MSP_SET_MOTOR(214): <no response expected>"
+  },
+  {
+    "timestamp": "12:44:20",
+    "channel": "MSP",
+    "message": "MSP -> MSP_SET_MOTOR(214) (set motor 0 speed=1188): 24 4D 3C 08 D6 A4 04 00 00 00 00 00 00 7E"
+  },
+  {
+    "timestamp": "12:44:20",
+    "channel": "MSP",
+    "message": "MSP <= MSP_SET_MOTOR(214): <no response expected>"
+  },
+  {
+    "timestamp": "12:44:20",
+    "channel": "MSP",
+    "message": "MSP -> MSP_SET_MOTOR(214) (set motor 0 speed=1190): 24 4D 3C 08 D6 A6 04 00 00 00 00 00 00 7C"
+  },
+  {
+    "timestamp": "12:44:20",
+    "channel": "MSP",
+    "message": "MSP <= MSP_SET_MOTOR(214): <no response expected>"
+  },
+  {
+    "timestamp": "12:44:20",
+    "channel": "MSP",
+    "message": "MSP -> MSP_SET_MOTOR(214) (set motor 0 speed=1182): 24 4D 3C 08 D6 9E 04 00 00 00 00 00 00 44"
+  },
+  {
+    "timestamp": "12:44:20",
+    "channel": "MSP",
+    "message": "MSP <= MSP_SET_MOTOR(214): <no response expected>"
+  },
+  {
+    "timestamp": "12:44:20",
+    "channel": "MSP",
+    "message": "MSP -> MSP_SET_MOTOR(214) (set motor 0 speed=1178): 24 4D 3C 08 D6 9A 04 00 00 00 00 00 00 40"
+  },
+  {
+    "timestamp": "12:44:20",
+    "channel": "MSP",
+    "message": "MSP <= MSP_SET_MOTOR(214): <no response expected>"
+  },
+  {
+    "timestamp": "12:44:20",
+    "channel": "MSP",
+    "message": "MSP -> MSP_SET_MOTOR(214) (set motor 0 speed=1176): 24 4D 3C 08 D6 98 04 00 00 00 00 00 00 42"
+  },
+  {
+    "timestamp": "12:44:20",
+    "channel": "MSP",
+    "message": "MSP <= MSP_SET_MOTOR(214): <no response expected>"
+  },
+  {
+    "timestamp": "12:44:20",
+    "channel": "MSP",
+    "message": "MSP -> MSP_SET_MOTOR(214) (set motor 0 speed=1174): 24 4D 3C 08 D6 96 04 00 00 00 00 00 00 4C"
+  },
+  {
+    "timestamp": "12:44:20",
+    "channel": "MSP",
+    "message": "MSP <= MSP_SET_MOTOR(214): <no response expected>"
+  },
+  {
+    "timestamp": "12:44:20",
+    "channel": "MSP",
+    "message": "MSP -> MSP_SET_MOTOR(214) (set motor 0 speed=1172): 24 4D 3C 08 D6 94 04 00 00 00 00 00 00 4E"
+  },
+  {
+    "timestamp": "12:44:20",
+    "channel": "MSP",
+    "message": "MSP <= MSP_SET_MOTOR(214): <no response expected>"
+  },
+  {
+    "timestamp": "12:44:20",
+    "channel": "MSP",
+    "message": "MSP -> MSP_SET_MOTOR(214) (set motor 0 speed=1147): 24 4D 3C 08 D6 7B 04 00 00 00 00 00 00 A1"
+  },
+  {
+    "timestamp": "12:44:20",
+    "channel": "MSP",
+    "message": "MSP <= MSP_SET_MOTOR(214): <no response expected>"
+  },
+  {
+    "timestamp": "12:44:20",
+    "channel": "MSP",
+    "message": "MSP -> MSP_SET_MOTOR(214) (set motor 0 speed=1151): 24 4D 3C 08 D6 7F 04 00 00 00 00 00 00 A5"
+  },
+  {
+    "timestamp": "12:44:20",
+    "channel": "MSP",
+    "message": "MSP <= MSP_SET_MOTOR(214): <no response expected>"
+  },
+  {
+    "timestamp": "12:44:20",
+    "channel": "MSP",
+    "message": "MSP -> MSP_SET_MOTOR(214) (set motor 0 speed=1168): 24 4D 3C 08 D6 90 04 00 00 00 00 00 00 4A"
+  },
+  {
+    "timestamp": "12:44:20",
+    "channel": "MSP",
+    "message": "MSP <= MSP_SET_MOTOR(214): <no response expected>"
+  },
+  {
+    "timestamp": "12:44:20",
+    "channel": "MSP",
+    "message": "MSP -> MSP_SET_MOTOR(214) (set motor 0 speed=1200): 24 4D 3C 08 D6 B0 04 00 00 00 00 00 00 6A"
+  },
+  {
+    "timestamp": "12:44:20",
+    "channel": "MSP",
+    "message": "MSP <= MSP_SET_MOTOR(214): <no response expected>"
+  },
+  {
+    "timestamp": "12:44:20",
+    "channel": "MSP",
+    "message": "MSP -> MSP_SET_MOTOR(214) (set motor 0 speed=1227): 24 4D 3C 08 D6 CB 04 00 00 00 00 00 00 11"
+  },
+  {
+    "timestamp": "12:44:20",
+    "channel": "MSP",
+    "message": "MSP <= MSP_SET_MOTOR(214): <no response expected>"
+  },
+  {
+    "timestamp": "12:44:20",
+    "channel": "MSP",
+    "message": "MSP -> MSP_SET_MOTOR(214) (set motor 0 speed=1245): 24 4D 3C 08 D6 DD 04 00 00 00 00 00 00 07"
+  },
+  {
+    "timestamp": "12:44:20",
+    "channel": "MSP",
+    "message": "MSP <= MSP_SET_MOTOR(214): <no response expected>"
+  },
+  {
+    "timestamp": "12:44:20",
+    "channel": "MSP",
+    "message": "MSP -> MSP_SET_MOTOR(214) (set motor 0 speed=1258): 24 4D 3C 08 D6 EA 04 00 00 00 00 00 00 30"
+  },
+  {
+    "timestamp": "12:44:20",
+    "channel": "MSP",
+    "message": "MSP <= MSP_SET_MOTOR(214): <no response expected>"
+  },
+  {
+    "timestamp": "12:44:20",
+    "channel": "MSP",
+    "message": "MSP -> MSP_SET_MOTOR(214) (set motor 0 speed=1280): 24 4D 3C 08 D6 00 05 00 00 00 00 00 00 DB"
+  },
+  {
+    "timestamp": "12:44:20",
+    "channel": "MSP",
+    "message": "MSP <= MSP_SET_MOTOR(214): <no response expected>"
+  },
+  {
+    "timestamp": "12:44:20",
+    "channel": "MSP",
+    "message": "MSP -> MSP_SET_MOTOR(214) (set motor 0 speed=1292): 24 4D 3C 08 D6 0C 05 00 00 00 00 00 00 D7"
+  },
+  {
+    "timestamp": "12:44:20",
+    "channel": "MSP",
+    "message": "MSP <= MSP_SET_MOTOR(214): <no response expected>"
+  },
+  {
+    "timestamp": "12:44:20",
+    "channel": "MSP",
+    "message": "MSP -> MSP_SET_MOTOR(214) (set motor 0 speed=1317): 24 4D 3C 08 D6 25 05 00 00 00 00 00 00 FE"
+  },
+  {
+    "timestamp": "12:44:20",
+    "channel": "MSP",
+    "message": "MSP <= MSP_SET_MOTOR(214): <no response expected>"
+  },
+  {
+    "timestamp": "12:44:20",
+    "channel": "MSP",
+    "message": "MSP -> MSP_SET_MOTOR(214) (set motor 0 speed=1354): 24 4D 3C 08 D6 4A 05 00 00 00 00 00 00 91"
+  },
+  {
+    "timestamp": "12:44:20",
+    "channel": "MSP",
+    "message": "MSP <= MSP_SET_MOTOR(214): <no response expected>"
+  },
+  {
+    "timestamp": "12:44:20",
+    "channel": "MSP",
+    "message": "MSP -> MSP_SET_MOTOR(214) (set motor 0 speed=1417): 24 4D 3C 08 D6 89 05 00 00 00 00 00 00 52"
+  },
+  {
+    "timestamp": "12:44:20",
+    "channel": "MSP",
+    "message": "MSP <= MSP_SET_MOTOR(214): <no response expected>"
+  },
+  {
+    "timestamp": "12:44:20",
+    "channel": "MSP",
+    "message": "MSP -> MSP_SET_MOTOR(214) (set motor 0 speed=1495): 24 4D 3C 08 D6 D7 05 00 00 00 00 00 00 0C"
+  },
+  {
+    "timestamp": "12:44:20",
+    "channel": "MSP",
+    "message": "MSP <= MSP_SET_MOTOR(214): <no response expected>"
+  },
+  {
+    "timestamp": "12:44:20",
+    "channel": "MSP",
+    "message": "MSP -> MSP_SET_MOTOR(214) (set motor 0 speed=1544): 24 4D 3C 08 D6 08 06 00 00 00 00 00 00 D0"
+  },
+  {
+    "timestamp": "12:44:20",
+    "channel": "MSP",
+    "message": "MSP <= MSP_SET_MOTOR(214): <no response expected>"
+  },
+  {
+    "timestamp": "12:44:20",
+    "channel": "MSP",
+    "message": "MSP -> MSP_SET_MOTOR(214) (set motor 0 speed=1556): 24 4D 3C 08 D6 14 06 00 00 00 00 00 00 CC"
+  },
+  {
+    "timestamp": "12:44:20",
+    "channel": "MSP",
+    "message": "MSP <= MSP_SET_MOTOR(214): <no response expected>"
+  },
+  {
+    "timestamp": "12:44:20",
+    "channel": "MSP",
+    "message": "MSP -> MSP_SET_MOTOR(214) (set motor 0 speed=1558): 24 4D 3C 08 D6 16 06 00 00 00 00 00 00 CE"
+  },
+  {
+    "timestamp": "12:44:20",
+    "channel": "MSP",
+    "message": "MSP <= MSP_SET_MOTOR(214): <no response expected>"
+  },
+  {
+    "timestamp": "12:44:20",
+    "channel": "MSP",
+    "message": "MSP -> MSP_SET_MOTOR(214) (set motor 0 speed=1562): 24 4D 3C 08 D6 1A 06 00 00 00 00 00 00 C2"
+  },
+  {
+    "timestamp": "12:44:20",
+    "channel": "MSP",
+    "message": "MSP <= MSP_SET_MOTOR(214): <no response expected>"
+  },
+  {
+    "timestamp": "12:44:20",
+    "channel": "MSP",
+    "message": "MSP -> MSP_SET_MOTOR(214) (set motor 0 speed=1564): 24 4D 3C 08 D6 1C 06 00 00 00 00 00 00 C4"
+  },
+  {
+    "timestamp": "12:44:20",
+    "channel": "MSP",
+    "message": "MSP <= MSP_SET_MOTOR(214): <no response expected>"
+  },
+  {
+    "timestamp": "12:44:20",
+    "channel": "MSP",
+    "message": "MSP -> MSP_SET_MOTOR(214) (set motor 0 speed=1618): 24 4D 3C 08 D6 52 06 00 00 00 00 00 00 8A"
+  },
+  {
+    "timestamp": "12:44:20",
+    "channel": "MSP",
+    "message": "MSP <= MSP_SET_MOTOR(214): <no response expected>"
+  },
+  {
+    "timestamp": "12:44:20",
+    "channel": "MSP",
+    "message": "MSP -> MSP_SET_MOTOR(214) (set motor 0 speed=1638): 24 4D 3C 08 D6 66 06 00 00 00 00 00 00 BE"
+  },
+  {
+    "timestamp": "12:44:20",
+    "channel": "MSP",
+    "message": "MSP <= MSP_SET_MOTOR(214): <no response expected>"
+  },
+  {
+    "timestamp": "12:44:20",
+    "channel": "MSP",
+    "message": "MSP -> MSP_SET_MOTOR(214) (set motor 0 speed=1656): 24 4D 3C 08 D6 78 06 00 00 00 00 00 00 A0"
+  },
+  {
+    "timestamp": "12:44:20",
+    "channel": "MSP",
+    "message": "MSP <= MSP_SET_MOTOR(214): <no response expected>"
+  },
+  {
+    "timestamp": "12:44:20",
+    "channel": "MSP",
+    "message": "MSP -> MSP_SET_MOTOR(214) (set motor 0 speed=1689): 24 4D 3C 08 D6 99 06 00 00 00 00 00 00 41"
+  },
+  {
+    "timestamp": "12:44:20",
+    "channel": "MSP",
+    "message": "MSP <= MSP_SET_MOTOR(214): <no response expected>"
+  },
+  {
+    "timestamp": "12:44:21",
+    "channel": "MSP",
+    "message": "MSP -> MSP_SET_MOTOR(214) (set motor 0 speed=1691): 24 4D 3C 08 D6 9B 06 00 00 00 00 00 00 43"
+  },
+  {
+    "timestamp": "12:44:21",
+    "channel": "MSP",
+    "message": "MSP <= MSP_SET_MOTOR(214): <no response expected>"
+  },
+  {
+    "timestamp": "12:44:21",
+    "channel": "MSP",
+    "message": "MSP -> MSP_SET_MOTOR(214) (set motor 0 speed=1693): 24 4D 3C 08 D6 9D 06 00 00 00 00 00 00 45"
+  },
+  {
+    "timestamp": "12:44:21",
+    "channel": "MSP",
+    "message": "MSP <= MSP_SET_MOTOR(214): <no response expected>"
+  },
+  {
+    "timestamp": "12:44:21",
+    "channel": "MSP",
+    "message": "MSP -> MSP_SET_MOTOR(214) (set motor 0 speed=1708): 24 4D 3C 08 D6 AC 06 00 00 00 00 00 00 74"
+  },
+  {
+    "timestamp": "12:44:21",
+    "channel": "MSP",
+    "message": "MSP <= MSP_SET_MOTOR(214): <no response expected>"
+  },
+  {
+    "timestamp": "12:44:21",
+    "channel": "MSP",
+    "message": "MSP -> MSP_SET_MOTOR(214) (set motor 0 speed=1769): 24 4D 3C 08 D6 E9 06 00 00 00 00 00 00 31"
+  },
+  {
+    "timestamp": "12:44:21",
+    "channel": "MSP",
+    "message": "MSP <= MSP_SET_MOTOR(214): <no response expected>"
+  },
+  {
+    "timestamp": "12:44:21",
+    "channel": "MSP",
+    "message": "MSP -> MSP_SET_MOTOR(214) (set motor 0 speed=1824): 24 4D 3C 08 D6 20 07 00 00 00 00 00 00 F9"
+  },
+  {
+    "timestamp": "12:44:21",
+    "channel": "MSP",
+    "message": "MSP <= MSP_SET_MOTOR(214): <no response expected>"
+  },
+  {
+    "timestamp": "12:44:21",
+    "channel": "MSP",
+    "message": "MSP -> MSP_SET_MOTOR(214) (set motor 0 speed=1861): 24 4D 3C 08 D6 45 07 00 00 00 00 00 00 9C"
+  },
+  {
+    "timestamp": "12:44:21",
+    "channel": "MSP",
+    "message": "MSP <= MSP_SET_MOTOR(214): <no response expected>"
+  },
+  {
+    "timestamp": "12:44:21",
+    "channel": "MSP",
+    "message": "MSP -> MSP_SET_MOTOR(214) (set motor 0 speed=1873): 24 4D 3C 08 D6 51 07 00 00 00 00 00 00 88"
+  },
+  {
+    "timestamp": "12:44:21",
+    "channel": "MSP",
+    "message": "MSP <= MSP_SET_MOTOR(214): <no response expected>"
+  },
+  {
+    "timestamp": "12:44:21",
+    "channel": "MSP",
+    "message": "MSP -> MSP_SET_MOTOR(214) (set motor 0 speed=1908): 24 4D 3C 08 D6 74 07 00 00 00 00 00 00 AD"
+  },
+  {
+    "timestamp": "12:44:21",
+    "channel": "MSP",
+    "message": "MSP <= MSP_SET_MOTOR(214): <no response expected>"
+  },
+  {
+    "timestamp": "12:44:21",
+    "channel": "MSP",
+    "message": "MSP -> MSP_SET_MOTOR(214) (set motor 0 speed=1930): 24 4D 3C 08 D6 8A 07 00 00 00 00 00 00 53"
+  },
+  {
+    "timestamp": "12:44:21",
+    "channel": "MSP",
+    "message": "MSP <= MSP_SET_MOTOR(214): <no response expected>"
+  },
+  {
+    "timestamp": "12:44:21",
+    "channel": "MSP",
+    "message": "MSP -> MSP_SET_MOTOR(214) (set motor 0 speed=1937): 24 4D 3C 08 D6 91 07 00 00 00 00 00 00 48"
+  },
+  {
+    "timestamp": "12:44:21",
+    "channel": "MSP",
+    "message": "MSP <= MSP_SET_MOTOR(214): <no response expected>"
+  },
+  {
+    "timestamp": "12:44:21",
+    "channel": "MSP",
+    "message": "MSP -> MSP_SET_MOTOR(214) (set motor 0 speed=1945): 24 4D 3C 08 D6 99 07 00 00 00 00 00 00 40"
+  },
+  {
+    "timestamp": "12:44:21",
+    "channel": "MSP",
+    "message": "MSP <= MSP_SET_MOTOR(214): <no response expected>"
+  },
+  {
+    "timestamp": "12:44:21",
+    "channel": "MSP",
+    "message": "MSP -> MSP_SET_MOTOR(214) (set motor 0 speed=1963): 24 4D 3C 08 D6 AB 07 00 00 00 00 00 00 72"
+  },
+  {
+    "timestamp": "12:44:21",
+    "channel": "MSP",
+    "message": "MSP <= MSP_SET_MOTOR(214): <no response expected>"
+  },
+  {
+    "timestamp": "12:44:21",
+    "channel": "MSP",
+    "message": "MSP -> MSP_SET_MOTOR(214) (set motor 0 speed=2000): 24 4D 3C 08 D6 D0 07 00 00 00 00 00 00 09"
+  },
+  {
+    "timestamp": "12:44:21",
+    "channel": "MSP",
+    "message": "MSP <= MSP_SET_MOTOR(214): <no response expected>"
+  },
+  {
+    "timestamp": "12:44:21",
+    "channel": "MSP",
+    "message": "MSP -> MSP_SET_MOTOR(214) (set motor 0 speed=1978): 24 4D 3C 08 D6 BA 07 00 00 00 00 00 00 63"
+  },
+  {
+    "timestamp": "12:44:21",
+    "channel": "MSP",
+    "message": "MSP <= MSP_SET_MOTOR(214): <no response expected>"
+  },
+  {
+    "timestamp": "12:44:21",
+    "channel": "MSP",
+    "message": "MSP -> MSP_SET_MOTOR(214) (set motor 0 speed=1881): 24 4D 3C 08 D6 59 07 00 00 00 00 00 00 80"
+  },
+  {
+    "timestamp": "12:44:21",
+    "channel": "MSP",
+    "message": "MSP <= MSP_SET_MOTOR(214): <no response expected>"
+  },
+  {
+    "timestamp": "12:44:22",
+    "channel": "MSP",
+    "message": "MSP -> MSP_SET_MOTOR(214) (set motor 0 speed=1771): 24 4D 3C 08 D6 EB 06 00 00 00 00 00 00 33"
+  },
+  {
+    "timestamp": "12:44:22",
+    "channel": "MSP",
+    "message": "MSP <= MSP_SET_MOTOR(214): <no response expected>"
+  },
+  {
+    "timestamp": "12:44:22",
+    "channel": "MSP",
+    "message": "MSP -> MSP_SET_MOTOR(214) (set motor 0 speed=1661): 24 4D 3C 08 D6 7D 06 00 00 00 00 00 00 A5"
+  },
+  {
+    "timestamp": "12:44:22",
+    "channel": "MSP",
+    "message": "MSP <= MSP_SET_MOTOR(214): <no response expected>"
+  },
+  {
+    "timestamp": "12:44:22",
+    "channel": "MSP",
+    "message": "MSP -> MSP_SET_MOTOR(214) (set motor 0 speed=1620): 24 4D 3C 08 D6 54 06 00 00 00 00 00 00 8C"
+  },
+  {
+    "timestamp": "12:44:22",
+    "channel": "MSP",
+    "message": "MSP <= MSP_SET_MOTOR(214): <no response expected>"
+  },
+  {
+    "timestamp": "12:44:22",
+    "channel": "MSP",
+    "message": "MSP -> MSP_SET_MOTOR(214) (set motor 0 speed=1413): 24 4D 3C 08 D6 85 05 00 00 00 00 00 00 5E"
+  },
+  {
+    "timestamp": "12:44:22",
+    "channel": "MSP",
+    "message": "MSP <= MSP_SET_MOTOR(214): <no response expected>"
+  },
+  {
+    "timestamp": "12:44:22",
+    "channel": "MSP",
+    "message": "MSP -> MSP_SET_MOTOR(214) (set motor 0 speed=1339): 24 4D 3C 08 D6 3B 05 00 00 00 00 00 00 E0"
+  },
+  {
+    "timestamp": "12:44:22",
+    "channel": "MSP",
+    "message": "MSP <= MSP_SET_MOTOR(214): <no response expected>"
+  },
+  {
+    "timestamp": "12:44:22",
+    "channel": "MSP",
+    "message": "MSP -> MSP_SET_MOTOR(214) (set motor 0 speed=1315): 24 4D 3C 08 D6 23 05 00 00 00 00 00 00 F8"
+  },
+  {
+    "timestamp": "12:44:22",
+    "channel": "MSP",
+    "message": "MSP <= MSP_SET_MOTOR(214): <no response expected>"
+  },
+  {
+    "timestamp": "12:44:22",
+    "channel": "MSP",
+    "message": "MSP -> MSP_SET_MOTOR(214) (set motor 0 speed=1290): 24 4D 3C 08 D6 0A 05 00 00 00 00 00 00 D1"
+  },
+  {
+    "timestamp": "12:44:22",
+    "channel": "MSP",
+    "message": "MSP <= MSP_SET_MOTOR(214): <no response expected>"
+  },
+  {
+    "timestamp": "12:44:22",
+    "channel": "MSP",
+    "message": "MSP -> MSP_SET_MOTOR(214) (set motor 0 speed=1202): 24 4D 3C 08 D6 B2 04 00 00 00 00 00 00 68"
+  },
+  {
+    "timestamp": "12:44:22",
+    "channel": "MSP",
+    "message": "MSP <= MSP_SET_MOTOR(214): <no response expected>"
+  },
+  {
+    "timestamp": "12:44:22",
+    "channel": "MSP",
+    "message": "MSP -> MSP_SET_MOTOR(214) (set motor 0 speed=1139): 24 4D 3C 08 D6 73 04 00 00 00 00 00 00 A9"
+  },
+  {
+    "timestamp": "12:44:22",
+    "channel": "MSP",
+    "message": "MSP <= MSP_SET_MOTOR(214): <no response expected>"
+  },
+  {
+    "timestamp": "12:44:22",
+    "channel": "MSP",
+    "message": "MSP -> MSP_SET_MOTOR(214) (set motor 0 speed=1094): 24 4D 3C 08 D6 46 04 00 00 00 00 00 00 9C"
+  },
+  {
+    "timestamp": "12:44:22",
+    "channel": "MSP",
+    "message": "MSP <= MSP_SET_MOTOR(214): <no response expected>"
+  },
+  {
+    "timestamp": "12:44:22",
+    "channel": "MSP",
+    "message": "MSP -> MSP_SET_MOTOR(214) (set motor 0 speed=1063): 24 4D 3C 08 D6 27 04 00 00 00 00 00 00 FD"
+  },
+  {
+    "timestamp": "12:44:22",
+    "channel": "MSP",
+    "message": "MSP <= MSP_SET_MOTOR(214): <no response expected>"
+  },
+  {
+    "timestamp": "12:44:22",
+    "channel": "MSP",
+    "message": "MSP -> MSP_SET_MOTOR(214) (set motor 0 speed=1014): 24 4D 3C 08 D6 F6 03 00 00 00 00 00 00 2B"
+  },
+  {
+    "timestamp": "12:44:22",
+    "channel": "MSP",
+    "message": "MSP <= MSP_SET_MOTOR(214): <no response expected>"
+  },
+  {
+    "timestamp": "12:44:22",
+    "channel": "MSP",
+    "message": "MSP -> MSP_SET_MOTOR(214) (set motor 0 speed=1000): 24 4D 3C 08 D6 E8 03 00 00 00 00 00 00 35"
+  },
+  {
+    "timestamp": "12:44:22",
+    "channel": "MSP",
+    "message": "MSP <= MSP_SET_MOTOR(214): <no response expected>"
+  },
+  {
+    "timestamp": "12:44:26",
+    "channel": "MSP",
+    "message": "MSP -> MSP_SET_PASSTHROUGH(245) (enter passthrough motor=0): 24 4D 3C 02 F5 00 00 F7"
+  },
+  {
+    "timestamp": "12:44:26",
+    "channel": "MSP",
+    "message": "MSP <= MSP_SET_MOTOR(214): 24 4D 3E 00 D6 D6"
+  },
+  {
+    "timestamp": "12:44:34",
+    "channel": "MSP",
+    "message": "MSP -> MSP_SET_PASSTHROUGH(245) (enter passthrough motor=0): 24 4D 3C 02 F5 00 00 F7"
+  },
+  {
+    "timestamp": "12:44:34",
+    "channel": "MSP",
+    "message": "MSP <= MSP_SET_MOTOR(214): 24 4D 3E 00 D6 D6"
+  },
+  {
+    "timestamp": "12:44:49",
+    "channel": "MSP",
+    "message": "MSP -> MSP_MOTOR(104) (read motor count): 24 4D 3C 00 68 68"
+  },
+  {
+    "timestamp": "12:44:49",
+    "channel": "MSP",
+    "message": "MSP <= MSP_MOTOR(104): 24 4D 3E 08 68 E8 03 E8 03 E8 03 E8 03 60"
+  },
+  {
+    "timestamp": "12:44:49",
+    "channel": "MSP",
+    "message": "MSP -> MSP_API_VERSION(1) (read API version): 24 4D 3C 00 01 01"
+  },
+  {
+    "timestamp": "12:44:49",
+    "channel": "MSP",
+    "message": "MSP <= MSP_API_VERSION(1): 24 4D 3E 03 01 00 01 30 33"
+  },
+  {
+    "timestamp": "12:44:49",
+    "channel": "MSP",
+    "message": "MSP -> MSP_FC_VARIANT(2) (read FC variant): 24 4D 3C 00 02 02"
+  },
+  {
+    "timestamp": "12:44:49",
+    "channel": "MSP",
+    "message": "MSP <= MSP_FC_VARIANT(2): 24 4D 3E 04 02 42 54 46 4C 1A"
+  },
+  {
+    "timestamp": "12:44:49",
+    "channel": "MSP",
+    "message": "MSP -> MSP_FC_VERSION(3) (read FC version): 24 4D 3C 00 03 03"
+  },
+  {
+    "timestamp": "12:44:49",
+    "channel": "MSP",
+    "message": "MSP <= MSP_FC_VERSION(3): 24 4D 3E 03 03 04 05 00 01"
+  },
+  {
+    "timestamp": "12:44:49",
+    "channel": "MSP",
+    "message": "MSP -> MSP_BOARD_INFO(4) (read board info): 24 4D 3C 00 04 04"
+  },
+  {
+    "timestamp": "12:44:49",
+    "channel": "MSP",
+    "message": "MSP <= MSP_BOARD_INFO(4): 24 4D 3E 06 04 50 32 46 43 00 00 65"
+  },
+  {
+    "timestamp": "12:44:49",
+    "channel": "MSP",
+    "message": "MSP -> MSP_BUILD_INFO(5) (read build info): 24 4D 3C 00 05 05"
+  },
+  {
+    "timestamp": "12:44:49",
+    "channel": "MSP",
+    "message": "MSP <= MSP_BUILD_INFO(5): 24 4D 3E 13 05 4D 61 72 20 32 31 20 32 30 32 36 31 32 3A 30 30 3A 30 30 4E"
+  },
+  {
+    "timestamp": "12:44:49",
+    "channel": "MSP",
+    "message": "MSP -> MSP_UID(160) (read UID): 24 4D 3C 00 A0 A0"
+  },
+  {
+    "timestamp": "12:44:49",
+    "channel": "MSP",
+    "message": "MSP <= MSP_UID(160): 24 4D 3E 0C A0 50 49 43 4F 00 00 00 00 00 00 00 00 B9"
+  },
+  {
+    "timestamp": "12:44:49",
+    "channel": "MSP",
+    "message": "MSP -> MSP_STATUS(101) (read status): 24 4D 3C 00 65 65"
+  },
+  {
+    "timestamp": "12:44:49",
+    "channel": "MSP",
+    "message": "MSP <= MSP_STATUS(101): 24 4D 3E 16 65 7D 00 00 00 01 00 00 00 00 00 00 00 00 00 00 00 00 04 00 00 00 00 0B"
+  },
+  {
+    "timestamp": "12:44:49",
+    "channel": "MSP",
+    "message": "MSP -> MSP_FEATURE_CONFIG(36) (read feature config): 24 4D 3C 00 24 24"
+  },
+  {
+    "timestamp": "12:44:49",
+    "channel": "MSP",
+    "message": "MSP <= MSP_FEATURE_CONFIG(36): 24 4D 3E 04 24 00 00 00 00 20"
+  },
+  {
+    "timestamp": "12:44:49",
+    "channel": "MSP",
+    "message": "MSP -> MSP_BATTERY_STATE(130) (read battery state): 24 4D 3C 00 82 82"
+  },
+  {
+    "timestamp": "12:44:49",
+    "channel": "MSP",
+    "message": "MSP <= MSP_BATTERY_STATE(130): 24 4D 3E 09 82 00 00 00 00 00 00 00 00 00 8B"
+  },
+  {
+    "timestamp": "12:44:49",
+    "channel": "MSP",
+    "message": "MSP -> MSP_RC(105) (read rc channels): 24 4D 3C 00 69 69"
+  },
+  {
+    "timestamp": "12:44:49",
+    "channel": "MSP",
+    "message": "MSP <= MSP_RC(105): 24 4D 3E 24 69 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 4D"
+  },
+  {
+    "timestamp": "12:44:49",
+    "channel": "MSP",
+    "message": "MSP -> MSP_ANALOG(110) (read analog): 24 4D 3C 00 6E 6E"
+  },
+  {
+    "timestamp": "12:44:49",
+    "channel": "MSP",
+    "message": "MSP <= MSP_ANALOG(110): 24 4D 3E 07 6E A8 00 00 00 00 00 00 C1"
+  },
+  {
+    "timestamp": "12:44:58",
+    "channel": "MSP",
+    "message": "MSP -> MSP_SET_PASSTHROUGH(245) (enter passthrough motor=0): 24 4D 3C 02 F5 00 00 F7"
+  },
+  {
+    "timestamp": "12:44:58",
+    "channel": "MSP",
+    "message": "MSP <= MSP_SET_PASSTHROUGH(245): 24 4D 3E 01 F5 04 F0"
+  },
+  {
+    "timestamp": "12:44:59",
+    "channel": "4WAY",
+    "message": "4WAY -> get_version(0x31) (read protocol version): 2F 31 00 00 01 00 65 85"
+  },
+  {
+    "timestamp": "12:45:01",
+    "channel": "4WAY",
+    "message": "4WAY -> read_eeprom(0x3D) (read settings): 2F 3D 00 00 01 80 7F 26"
+  },
+  {
+    "timestamp": "12:45:09",
+    "channel": "MSP",
+    "message": "MSP -> MSP_MOTOR(104) (read motor count): 24 4D 3C 00 68 68"
+  },
+  {
+    "timestamp": "12:45:09",
+    "channel": "MSP",
+    "message": "MSP <= MSP_MOTOR(104): 24 4D 3E 08 68 E8 03 E8 03 E8 03 E8 03 60"
+  },
+  {
+    "timestamp": "12:45:09",
+    "channel": "MSP",
+    "message": "MSP -> MSP_API_VERSION(1) (read API version): 24 4D 3C 00 01 01"
+  },
+  {
+    "timestamp": "12:45:09",
+    "channel": "MSP",
+    "message": "MSP <= MSP_API_VERSION(1): 24 4D 3E 03 01 00 01 30 33"
+  },
+  {
+    "timestamp": "12:45:09",
+    "channel": "MSP",
+    "message": "MSP -> MSP_FC_VARIANT(2) (read FC variant): 24 4D 3C 00 02 02"
+  },
+  {
+    "timestamp": "12:45:09",
+    "channel": "MSP",
+    "message": "MSP <= MSP_FC_VARIANT(2): 24 4D 3E 04 02 42 54 46 4C 1A"
+  },
+  {
+    "timestamp": "12:45:09",
+    "channel": "MSP",
+    "message": "MSP -> MSP_FC_VERSION(3) (read FC version): 24 4D 3C 00 03 03"
+  },
+  {
+    "timestamp": "12:45:09",
+    "channel": "MSP",
+    "message": "MSP <= MSP_FC_VERSION(3): 24 4D 3E 03 03 04 05 00 01"
+  },
+  {
+    "timestamp": "12:45:09",
+    "channel": "MSP",
+    "message": "MSP -> MSP_BOARD_INFO(4) (read board info): 24 4D 3C 00 04 04"
+  },
+  {
+    "timestamp": "12:45:09",
+    "channel": "MSP",
+    "message": "MSP <= MSP_BOARD_INFO(4): 24 4D 3E 06 04 50 32 46 43 00 00 65"
+  },
+  {
+    "timestamp": "12:45:09",
+    "channel": "MSP",
+    "message": "MSP -> MSP_BUILD_INFO(5) (read build info): 24 4D 3C 00 05 05"
+  },
+  {
+    "timestamp": "12:45:09",
+    "channel": "MSP",
+    "message": "MSP <= MSP_BUILD_INFO(5): 24 4D 3E 13 05 4D 61 72 20 32 31 20 32 30 32 36 31 32 3A 30 30 3A 30 30 4E"
+  },
+  {
+    "timestamp": "12:45:09",
+    "channel": "MSP",
+    "message": "MSP -> MSP_UID(160) (read UID): 24 4D 3C 00 A0 A0"
+  },
+  {
+    "timestamp": "12:45:09",
+    "channel": "MSP",
+    "message": "MSP <= MSP_UID(160): 24 4D 3E 0C A0 50 49 43 4F 00 00 00 00 00 00 00 00 B9"
+  },
+  {
+    "timestamp": "12:45:09",
+    "channel": "MSP",
+    "message": "MSP -> MSP_STATUS(101) (read status): 24 4D 3C 00 65 65"
+  },
+  {
+    "timestamp": "12:45:09",
+    "channel": "MSP",
+    "message": "MSP <= MSP_STATUS(101): 24 4D 3E 16 65 7D 00 00 00 01 00 00 00 00 00 00 00 00 00 00 00 00 04 00 00 00 00 0B"
+  },
+  {
+    "timestamp": "12:45:09",
+    "channel": "MSP",
+    "message": "MSP -> MSP_FEATURE_CONFIG(36) (read feature config): 24 4D 3C 00 24 24"
+  },
+  {
+    "timestamp": "12:45:09",
+    "channel": "MSP",
+    "message": "MSP <= MSP_FEATURE_CONFIG(36): 24 4D 3E 04 24 00 00 00 00 20"
+  },
+  {
+    "timestamp": "12:45:09",
+    "channel": "MSP",
+    "message": "MSP -> MSP_BATTERY_STATE(130) (read battery state): 24 4D 3C 00 82 82"
+  },
+  {
+    "timestamp": "12:45:09",
+    "channel": "MSP",
+    "message": "MSP <= MSP_BATTERY_STATE(130): 24 4D 3E 09 82 00 00 00 00 00 00 00 00 00 8B"
+  },
+  {
+    "timestamp": "12:45:09",
+    "channel": "MSP",
+    "message": "MSP -> MSP_RC(105) (read rc channels): 24 4D 3C 00 69 69"
+  },
+  {
+    "timestamp": "12:45:09",
+    "channel": "MSP",
+    "message": "MSP <= MSP_RC(105): 24 4D 3E 24 69 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 4D"
+  },
+  {
+    "timestamp": "12:45:09",
+    "channel": "MSP",
+    "message": "MSP -> MSP_ANALOG(110) (read analog): 24 4D 3C 00 6E 6E"
+  },
+  {
+    "timestamp": "12:45:09",
+    "channel": "MSP",
+    "message": "MSP <= MSP_ANALOG(110): 24 4D 3E 07 6E A8 00 00 00 00 00 00 C1"
+  },
+  {
+    "timestamp": "12:45:12",
+    "channel": "MSP",
+    "message": "MSP -> MSP_SET_PASSTHROUGH(245) (enter passthrough motor=0): 24 4D 3C 02 F5 00 00 F7"
+  },
+  {
+    "timestamp": "12:45:12",
+    "channel": "MSP",
+    "message": "MSP <= MSP_SET_PASSTHROUGH(245): 24 4D 3E 01 F5 04 F0"
+  },
+  {
+    "timestamp": "12:45:13",
+    "channel": "4WAY",
+    "message": "4WAY -> get_version(0x31) (read protocol version): 2F 31 00 00 01 00 65 85"
+  },
+  {
+    "timestamp": "12:45:15",
+    "channel": "4WAY",
+    "message": "4WAY -> read_eeprom(0x3D) (read settings): 2F 3D 00 00 01 80 7F 26"
+  },
+  {
+    "timestamp": "12:45:22",
+    "channel": "MSP",
+    "message": "MSP -> MSP_MOTOR(104) (read motor count): 24 4D 3C 00 68 68"
+  },
+  {
+    "timestamp": "12:45:22",
+    "channel": "MSP",
+    "message": "MSP <= MSP_MOTOR(104): 24 4D 3E 08 68 E8 03 E8 03 E8 03 E8 03 60"
+  },
+  {
+    "timestamp": "12:45:22",
+    "channel": "MSP",
+    "message": "MSP -> MSP_API_VERSION(1) (read API version): 24 4D 3C 00 01 01"
+  },
+  {
+    "timestamp": "12:45:22",
+    "channel": "MSP",
+    "message": "MSP <= MSP_API_VERSION(1): 24 4D 3E 03 01 00 01 30 33"
+  },
+  {
+    "timestamp": "12:45:22",
+    "channel": "MSP",
+    "message": "MSP -> MSP_FC_VARIANT(2) (read FC variant): 24 4D 3C 00 02 02"
+  },
+  {
+    "timestamp": "12:45:22",
+    "channel": "MSP",
+    "message": "MSP <= MSP_FC_VARIANT(2): 24 4D 3E 04 02 42 54 46 4C 1A"
+  },
+  {
+    "timestamp": "12:45:22",
+    "channel": "MSP",
+    "message": "MSP -> MSP_FC_VERSION(3) (read FC version): 24 4D 3C 00 03 03"
+  },
+  {
+    "timestamp": "12:45:22",
+    "channel": "MSP",
+    "message": "MSP <= MSP_FC_VERSION(3): 24 4D 3E 03 03 04 05 00 01"
+  },
+  {
+    "timestamp": "12:45:22",
+    "channel": "MSP",
+    "message": "MSP -> MSP_BOARD_INFO(4) (read board info): 24 4D 3C 00 04 04"
+  },
+  {
+    "timestamp": "12:45:22",
+    "channel": "MSP",
+    "message": "MSP <= MSP_BOARD_INFO(4): 24 4D 3E 06 04 50 32 46 43 00 00 65"
+  },
+  {
+    "timestamp": "12:45:22",
+    "channel": "MSP",
+    "message": "MSP -> MSP_BUILD_INFO(5) (read build info): 24 4D 3C 00 05 05"
+  },
+  {
+    "timestamp": "12:45:22",
+    "channel": "MSP",
+    "message": "MSP <= MSP_BUILD_INFO(5): 24 4D 3E 13 05 4D 61 72 20 32 31 20 32 30 32 36 31 32 3A 30 30 3A 30 30 4E"
+  },
+  {
+    "timestamp": "12:45:22",
+    "channel": "MSP",
+    "message": "MSP -> MSP_UID(160) (read UID): 24 4D 3C 00 A0 A0"
+  },
+  {
+    "timestamp": "12:45:22",
+    "channel": "MSP",
+    "message": "MSP <= MSP_UID(160): 24 4D 3E 0C A0 50 49 43 4F 00 00 00 00 00 00 00 00 B9"
+  },
+  {
+    "timestamp": "12:45:22",
+    "channel": "MSP",
+    "message": "MSP -> MSP_STATUS(101) (read status): 24 4D 3C 00 65 65"
+  },
+  {
+    "timestamp": "12:45:22",
+    "channel": "MSP",
+    "message": "MSP <= MSP_STATUS(101): 24 4D 3E 16 65 7D 00 00 00 01 00 00 00 00 00 00 00 00 00 00 00 00 04 00 00 00 00 0B"
+  },
+  {
+    "timestamp": "12:45:22",
+    "channel": "MSP",
+    "message": "MSP -> MSP_FEATURE_CONFIG(36) (read feature config): 24 4D 3C 00 24 24"
+  },
+  {
+    "timestamp": "12:45:22",
+    "channel": "MSP",
+    "message": "MSP <= MSP_FEATURE_CONFIG(36): 24 4D 3E 04 24 00 00 00 00 20"
+  },
+  {
+    "timestamp": "12:45:22",
+    "channel": "MSP",
+    "message": "MSP -> MSP_BATTERY_STATE(130) (read battery state): 24 4D 3C 00 82 82"
+  },
+  {
+    "timestamp": "12:45:22",
+    "channel": "MSP",
+    "message": "MSP <= MSP_BATTERY_STATE(130): 24 4D 3E 09 82 00 00 00 00 00 00 00 00 00 8B"
+  },
+  {
+    "timestamp": "12:45:22",
+    "channel": "MSP",
+    "message": "MSP -> MSP_RC(105) (read rc channels): 24 4D 3C 00 69 69"
+  },
+  {
+    "timestamp": "12:45:22",
+    "channel": "MSP",
+    "message": "MSP <= MSP_RC(105): 24 4D 3E 24 69 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 4D"
+  },
+  {
+    "timestamp": "12:45:22",
+    "channel": "MSP",
+    "message": "MSP -> MSP_ANALOG(110) (read analog): 24 4D 3C 00 6E 6E"
+  },
+  {
+    "timestamp": "12:45:22",
+    "channel": "MSP",
+    "message": "MSP <= MSP_ANALOG(110): 24 4D 3E 07 6E A8 00 00 00 00 00 00 C1"
+  },
+  {
+    "timestamp": "12:45:24",
+    "channel": "MSP",
+    "message": "MSP -> MSP_SET_PASSTHROUGH(245) (enter passthrough motor=0): 24 4D 3C 02 F5 00 00 F7"
+  },
+  {
+    "timestamp": "12:45:24",
+    "channel": "MSP",
+    "message": "MSP <= MSP_SET_PASSTHROUGH(245): 24 4D 3E 01 F5 04 F0"
+  },
+  {
+    "timestamp": "12:45:25",
+    "channel": "4WAY",
+    "message": "4WAY -> get_version(0x31) (read protocol version): 2F 31 00 00 01 00 65 85"
+  },
+  {
+    "timestamp": "12:45:28",
+    "channel": "4WAY",
+    "message": "4WAY -> read_eeprom(0x3D) (read settings): 2F 3D 00 00 01 80 7F 26"
+  },
+  {
+    "timestamp": "12:48:08",
+    "channel": "MSP",
+    "message": "MSP -> MSP_MOTOR(104) (read motor count): 24 4D 3C 00 68 68"
+  },
+  {
+    "timestamp": "12:48:08",
+    "channel": "MSP",
+    "message": "MSP <= MSP_MOTOR(104): 24 4D 3E 08 68 E8 03 E8 03 E8 03 E8 03 60"
+  },
+  {
+    "timestamp": "12:48:09",
+    "channel": "MSP",
+    "message": "MSP -> MSP_API_VERSION(1) (read API version): 24 4D 3C 00 01 01"
+  },
+  {
+    "timestamp": "12:48:09",
+    "channel": "MSP",
+    "message": "MSP <= MSP_API_VERSION(1): 24 4D 3E 03 01 00 01 30 33"
+  },
+  {
+    "timestamp": "12:48:09",
+    "channel": "MSP",
+    "message": "MSP -> MSP_FC_VARIANT(2) (read FC variant): 24 4D 3C 00 02 02"
+  },
+  {
+    "timestamp": "12:48:09",
+    "channel": "MSP",
+    "message": "MSP <= MSP_FC_VARIANT(2): 24 4D 3E 04 02 42 54 46 4C 1A"
+  },
+  {
+    "timestamp": "12:48:09",
+    "channel": "MSP",
+    "message": "MSP -> MSP_FC_VERSION(3) (read FC version): 24 4D 3C 00 03 03"
+  },
+  {
+    "timestamp": "12:48:09",
+    "channel": "MSP",
+    "message": "MSP <= MSP_FC_VERSION(3): 24 4D 3E 03 03 04 05 00 01"
+  },
+  {
+    "timestamp": "12:48:09",
+    "channel": "MSP",
+    "message": "MSP -> MSP_BOARD_INFO(4) (read board info): 24 4D 3C 00 04 04"
+  },
+  {
+    "timestamp": "12:48:09",
+    "channel": "MSP",
+    "message": "MSP <= MSP_BOARD_INFO(4): 24 4D 3E 06 04 50 32 46 43 00 00 65"
+  },
+  {
+    "timestamp": "12:48:09",
+    "channel": "MSP",
+    "message": "MSP -> MSP_BUILD_INFO(5) (read build info): 24 4D 3C 00 05 05"
+  },
+  {
+    "timestamp": "12:48:09",
+    "channel": "MSP",
+    "message": "MSP <= MSP_BUILD_INFO(5): 24 4D 3E 13 05 4D 61 72 20 32 31 20 32 30 32 36 31 32 3A 30 30 3A 30 30 4E"
+  },
+  {
+    "timestamp": "12:48:09",
+    "channel": "MSP",
+    "message": "MSP -> MSP_UID(160) (read UID): 24 4D 3C 00 A0 A0"
+  },
+  {
+    "timestamp": "12:48:09",
+    "channel": "MSP",
+    "message": "MSP <= MSP_UID(160): 24 4D 3E 0C A0 50 49 43 4F 00 00 00 00 00 00 00 00 B9"
+  },
+  {
+    "timestamp": "12:48:09",
+    "channel": "MSP",
+    "message": "MSP -> MSP_STATUS(101) (read status): 24 4D 3C 00 65 65"
+  },
+  {
+    "timestamp": "12:48:09",
+    "channel": "MSP",
+    "message": "MSP <= MSP_STATUS(101): 24 4D 3E 16 65 7D 00 00 00 01 00 00 00 00 00 00 00 00 00 00 00 00 04 00 00 00 00 0B"
+  },
+  {
+    "timestamp": "12:48:09",
+    "channel": "MSP",
+    "message": "MSP -> MSP_FEATURE_CONFIG(36) (read feature config): 24 4D 3C 00 24 24"
+  },
+  {
+    "timestamp": "12:48:09",
+    "channel": "MSP",
+    "message": "MSP <= MSP_FEATURE_CONFIG(36): 24 4D 3E 04 24 00 00 00 00 20"
+  },
+  {
+    "timestamp": "12:48:09",
+    "channel": "MSP",
+    "message": "MSP -> MSP_BATTERY_STATE(130) (read battery state): 24 4D 3C 00 82 82"
+  },
+  {
+    "timestamp": "12:48:09",
+    "channel": "MSP",
+    "message": "MSP <= MSP_BATTERY_STATE(130): 24 4D 3E 09 82 00 00 00 00 00 00 00 00 00 8B"
+  },
+  {
+    "timestamp": "12:48:09",
+    "channel": "MSP",
+    "message": "MSP -> MSP_RC(105) (read rc channels): 24 4D 3C 00 69 69"
+  },
+  {
+    "timestamp": "12:48:09",
+    "channel": "MSP",
+    "message": "MSP <= MSP_RC(105): 24 4D 3E 24 69 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 4D"
+  },
+  {
+    "timestamp": "12:48:09",
+    "channel": "MSP",
+    "message": "MSP -> MSP_ANALOG(110) (read analog): 24 4D 3C 00 6E 6E"
+  },
+  {
+    "timestamp": "12:48:09",
+    "channel": "MSP",
+    "message": "MSP <= MSP_ANALOG(110): 24 4D 3E 07 6E A8 00 00 00 00 00 00 C1"
+  },
+  {
+    "timestamp": "12:48:10",
+    "channel": "MSP",
+    "message": "MSP -> MSP_SET_PASSTHROUGH(245) (enter passthrough motor=0): 24 4D 3C 02 F5 00 00 F7"
+  },
+  {
+    "timestamp": "12:48:10",
+    "channel": "MSP",
+    "message": "MSP <= MSP_SET_PASSTHROUGH(245): 24 4D 3E 01 F5 04 F0"
+  },
+  {
+    "timestamp": "12:48:12",
+    "channel": "4WAY",
+    "message": "4WAY -> get_version(0x31) (read protocol version): 2F 31 00 00 01 00 65 85"
+  },
+  {
+    "timestamp": "12:48:14",
+    "channel": "4WAY",
+    "message": "4WAY -> read_eeprom(0x3D) (read settings): 2F 3D 00 00 01 80 7F 26"
+  },
+  {
+    "timestamp": "12:48:31",
+    "channel": "MSP",
+    "message": "MSP -> MSP_MOTOR(104) (read motor count): 24 4D 3C 00 68 68"
+  },
+  {
+    "timestamp": "12:48:31",
+    "channel": "MSP",
+    "message": "MSP <= MSP_MOTOR(104): 24 4D 3E 08 68 E8 03 E8 03 E8 03 E8 03 60"
+  },
+  {
+    "timestamp": "12:48:31",
+    "channel": "MSP",
+    "message": "MSP -> MSP_API_VERSION(1) (read API version): 24 4D 3C 00 01 01"
+  },
+  {
+    "timestamp": "12:48:31",
+    "channel": "MSP",
+    "message": "MSP <= MSP_API_VERSION(1): 24 4D 3E 03 01 00 01 30 33"
+  },
+  {
+    "timestamp": "12:48:31",
+    "channel": "MSP",
+    "message": "MSP -> MSP_FC_VARIANT(2) (read FC variant): 24 4D 3C 00 02 02"
+  },
+  {
+    "timestamp": "12:48:31",
+    "channel": "MSP",
+    "message": "MSP <= MSP_FC_VARIANT(2): 24 4D 3E 04 02 42 54 46 4C 1A"
+  },
+  {
+    "timestamp": "12:48:31",
+    "channel": "MSP",
+    "message": "MSP -> MSP_FC_VERSION(3) (read FC version): 24 4D 3C 00 03 03"
+  },
+  {
+    "timestamp": "12:48:31",
+    "channel": "MSP",
+    "message": "MSP <= MSP_FC_VERSION(3): 24 4D 3E 03 03 04 05 00 01"
+  },
+  {
+    "timestamp": "12:48:31",
+    "channel": "MSP",
+    "message": "MSP -> MSP_BOARD_INFO(4) (read board info): 24 4D 3C 00 04 04"
+  },
+  {
+    "timestamp": "12:48:31",
+    "channel": "MSP",
+    "message": "MSP <= MSP_BOARD_INFO(4): 24 4D 3E 06 04 50 32 46 43 00 00 65"
+  },
+  {
+    "timestamp": "12:48:31",
+    "channel": "MSP",
+    "message": "MSP -> MSP_BUILD_INFO(5) (read build info): 24 4D 3C 00 05 05"
+  },
+  {
+    "timestamp": "12:48:31",
+    "channel": "MSP",
+    "message": "MSP <= MSP_BUILD_INFO(5): 24 4D 3E 13 05 4D 61 72 20 32 31 20 32 30 32 36 31 32 3A 30 30 3A 30 30 4E"
+  },
+  {
+    "timestamp": "12:48:31",
+    "channel": "MSP",
+    "message": "MSP -> MSP_UID(160) (read UID): 24 4D 3C 00 A0 A0"
+  },
+  {
+    "timestamp": "12:48:31",
+    "channel": "MSP",
+    "message": "MSP <= MSP_UID(160): 24 4D 3E 0C A0 50 49 43 4F 00 00 00 00 00 00 00 00 B9"
+  },
+  {
+    "timestamp": "12:48:31",
+    "channel": "MSP",
+    "message": "MSP -> MSP_STATUS(101) (read status): 24 4D 3C 00 65 65"
+  },
+  {
+    "timestamp": "12:48:31",
+    "channel": "MSP",
+    "message": "MSP <= MSP_STATUS(101): 24 4D 3E 16 65 7D 00 00 00 01 00 00 00 00 00 00 00 00 00 00 00 00 04 00 00 00 00 0B"
+  },
+  {
+    "timestamp": "12:48:31",
+    "channel": "MSP",
+    "message": "MSP -> MSP_FEATURE_CONFIG(36) (read feature config): 24 4D 3C 00 24 24"
+  },
+  {
+    "timestamp": "12:48:31",
+    "channel": "MSP",
+    "message": "MSP <= MSP_FEATURE_CONFIG(36): 24 4D 3E 04 24 00 00 00 00 20"
+  },
+  {
+    "timestamp": "12:48:31",
+    "channel": "MSP",
+    "message": "MSP -> MSP_BATTERY_STATE(130) (read battery state): 24 4D 3C 00 82 82"
+  },
+  {
+    "timestamp": "12:48:31",
+    "channel": "MSP",
+    "message": "MSP <= MSP_BATTERY_STATE(130): 24 4D 3E 09 82 00 00 00 00 00 00 00 00 00 8B"
+  },
+  {
+    "timestamp": "12:48:31",
+    "channel": "MSP",
+    "message": "MSP -> MSP_RC(105) (read rc channels): 24 4D 3C 00 69 69"
+  },
+  {
+    "timestamp": "12:48:31",
+    "channel": "MSP",
+    "message": "MSP <= MSP_RC(105): 24 4D 3E 24 69 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 4D"
+  },
+  {
+    "timestamp": "12:48:31",
+    "channel": "MSP",
+    "message": "MSP -> MSP_ANALOG(110) (read analog): 24 4D 3C 00 6E 6E"
+  },
+  {
+    "timestamp": "12:48:31",
+    "channel": "MSP",
+    "message": "MSP <= MSP_ANALOG(110): 24 4D 3E 07 6E A8 00 00 00 00 00 00 C1"
+  },
+  {
+    "timestamp": "12:48:34",
+    "channel": "MSP",
+    "message": "MSP -> MSP_SET_PASSTHROUGH(245) (enter passthrough motor=0): 24 4D 3C 02 F5 00 00 F7"
+  },
+  {
+    "timestamp": "12:48:34",
+    "channel": "MSP",
+    "message": "MSP <= MSP_SET_PASSTHROUGH(245): 24 4D 3E 01 F5 04 F0"
+  },
+  {
+    "timestamp": "12:48:35",
+    "channel": "4WAY",
+    "message": "4WAY -> get_version(0x31) (read protocol version): 2F 31 00 00 01 00 65 85"
+  },
+  {
+    "timestamp": "12:48:38",
+    "channel": "4WAY",
+    "message": "4WAY -> read_eeprom(0x3D) (read settings): 2F 3D 00 00 01 80 7F 26"
+  },
+  {
+    "timestamp": "12:48:55",
+    "channel": "MSP",
+    "message": "MSP -> MSP_MOTOR(104) (read motor count): 24 4D 3C 00 68 68"
+  },
+  {
+    "timestamp": "12:48:55",
+    "channel": "MSP",
+    "message": "MSP <= MSP_MOTOR(104): 24 4D 3E 08 68 E8 03 E8 03 E8 03 E8 03 60"
+  },
+  {
+    "timestamp": "12:48:55",
+    "channel": "MSP",
+    "message": "MSP -> MSP_API_VERSION(1) (read API version): 24 4D 3C 00 01 01"
+  },
+  {
+    "timestamp": "12:48:55",
+    "channel": "MSP",
+    "message": "MSP <= MSP_API_VERSION(1): 24 4D 3E 03 01 00 01 30 33"
+  },
+  {
+    "timestamp": "12:48:55",
+    "channel": "MSP",
+    "message": "MSP -> MSP_FC_VARIANT(2) (read FC variant): 24 4D 3C 00 02 02"
+  },
+  {
+    "timestamp": "12:48:55",
+    "channel": "MSP",
+    "message": "MSP <= MSP_FC_VARIANT(2): 24 4D 3E 04 02 42 54 46 4C 1A"
+  },
+  {
+    "timestamp": "12:48:55",
+    "channel": "MSP",
+    "message": "MSP -> MSP_FC_VERSION(3) (read FC version): 24 4D 3C 00 03 03"
+  },
+  {
+    "timestamp": "12:48:55",
+    "channel": "MSP",
+    "message": "MSP <= MSP_FC_VERSION(3): 24 4D 3E 03 03 04 05 00 01"
+  },
+  {
+    "timestamp": "12:48:55",
+    "channel": "MSP",
+    "message": "MSP -> MSP_BOARD_INFO(4) (read board info): 24 4D 3C 00 04 04"
+  },
+  {
+    "timestamp": "12:48:55",
+    "channel": "MSP",
+    "message": "MSP <= MSP_BOARD_INFO(4): 24 4D 3E 06 04 50 32 46 43 00 00 65"
+  },
+  {
+    "timestamp": "12:48:55",
+    "channel": "MSP",
+    "message": "MSP -> MSP_BUILD_INFO(5) (read build info): 24 4D 3C 00 05 05"
+  },
+  {
+    "timestamp": "12:48:55",
+    "channel": "MSP",
+    "message": "MSP <= MSP_BUILD_INFO(5): 24 4D 3E 13 05 4D 61 72 20 32 31 20 32 30 32 36 31 32 3A 30 30 3A 30 30 4E"
+  },
+  {
+    "timestamp": "12:48:55",
+    "channel": "MSP",
+    "message": "MSP -> MSP_UID(160) (read UID): 24 4D 3C 00 A0 A0"
+  },
+  {
+    "timestamp": "12:48:55",
+    "channel": "MSP",
+    "message": "MSP <= MSP_UID(160): 24 4D 3E 0C A0 50 49 43 4F 00 00 00 00 00 00 00 00 B9"
+  },
+  {
+    "timestamp": "12:48:55",
+    "channel": "MSP",
+    "message": "MSP -> MSP_STATUS(101) (read status): 24 4D 3C 00 65 65"
+  },
+  {
+    "timestamp": "12:48:55",
+    "channel": "MSP",
+    "message": "MSP <= MSP_STATUS(101): 24 4D 3E 16 65 7D 00 00 00 01 00 00 00 00 00 00 00 00 00 00 00 00 04 00 00 00 00 0B"
+  },
+  {
+    "timestamp": "12:48:55",
+    "channel": "MSP",
+    "message": "MSP -> MSP_FEATURE_CONFIG(36) (read feature config): 24 4D 3C 00 24 24"
+  },
+  {
+    "timestamp": "12:48:55",
+    "channel": "MSP",
+    "message": "MSP <= MSP_FEATURE_CONFIG(36): 24 4D 3E 04 24 00 00 00 00 20"
+  },
+  {
+    "timestamp": "12:48:55",
+    "channel": "MSP",
+    "message": "MSP -> MSP_BATTERY_STATE(130) (read battery state): 24 4D 3C 00 82 82"
+  },
+  {
+    "timestamp": "12:48:55",
+    "channel": "MSP",
+    "message": "MSP <= MSP_BATTERY_STATE(130): 24 4D 3E 09 82 00 00 00 00 00 00 00 00 00 8B"
+  },
+  {
+    "timestamp": "12:48:55",
+    "channel": "MSP",
+    "message": "MSP -> MSP_RC(105) (read rc channels): 24 4D 3C 00 69 69"
+  },
+  {
+    "timestamp": "12:48:55",
+    "channel": "MSP",
+    "message": "MSP <= MSP_RC(105): 24 4D 3E 24 69 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 4D"
+  },
+  {
+    "timestamp": "12:48:55",
+    "channel": "MSP",
+    "message": "MSP -> MSP_ANALOG(110) (read analog): 24 4D 3C 00 6E 6E"
+  },
+  {
+    "timestamp": "12:48:55",
+    "channel": "MSP",
+    "message": "MSP <= MSP_ANALOG(110): 24 4D 3E 07 6E A8 00 00 00 00 00 00 C1"
+  },
+  {
+    "timestamp": "12:48:57",
+    "channel": "MSP",
+    "message": "MSP -> MSP_SET_PASSTHROUGH(245) (enter passthrough motor=0): 24 4D 3C 02 F5 00 00 F7"
+  },
+  {
+    "timestamp": "12:48:57",
+    "channel": "MSP",
+    "message": "MSP <= MSP_SET_PASSTHROUGH(245): 24 4D 3E 01 F5 04 F0"
+  },
+  {
+    "timestamp": "12:48:58",
+    "channel": "4WAY",
+    "message": "4WAY -> get_version(0x31) (read protocol version): 2F 31 00 00 01 00 65 85"
+  },
+  {
+    "timestamp": "12:49:00",
+    "channel": "4WAY",
+    "message": "4WAY -> read_eeprom(0x3D) (read settings): 2F 3D 00 00 01 80 7F 26"
+  },
+  {
+    "timestamp": "12:49:15",
+    "channel": "MSP",
+    "message": "MSP -> MSP_MOTOR(104) (read motor count): 24 4D 3C 00 68 68"
+  },
+  {
+    "timestamp": "12:49:15",
+    "channel": "MSP",
+    "message": "MSP <= MSP_MOTOR(104): 24 4D 3E 08 68 E8 03 E8 03 E8 03 E8 03 60"
+  },
+  {
+    "timestamp": "12:49:15",
+    "channel": "MSP",
+    "message": "MSP -> MSP_API_VERSION(1) (read API version): 24 4D 3C 00 01 01"
+  },
+  {
+    "timestamp": "12:49:15",
+    "channel": "MSP",
+    "message": "MSP <= MSP_API_VERSION(1): 24 4D 3E 03 01 00 01 30 33"
+  },
+  {
+    "timestamp": "12:49:15",
+    "channel": "MSP",
+    "message": "MSP -> MSP_FC_VARIANT(2) (read FC variant): 24 4D 3C 00 02 02"
+  },
+  {
+    "timestamp": "12:49:15",
+    "channel": "MSP",
+    "message": "MSP <= MSP_FC_VARIANT(2): 24 4D 3E 04 02 42 54 46 4C 1A"
+  },
+  {
+    "timestamp": "12:49:15",
+    "channel": "MSP",
+    "message": "MSP -> MSP_FC_VERSION(3) (read FC version): 24 4D 3C 00 03 03"
+  },
+  {
+    "timestamp": "12:49:15",
+    "channel": "MSP",
+    "message": "MSP <= MSP_FC_VERSION(3): 24 4D 3E 03 03 04 05 00 01"
+  },
+  {
+    "timestamp": "12:49:15",
+    "channel": "MSP",
+    "message": "MSP -> MSP_BOARD_INFO(4) (read board info): 24 4D 3C 00 04 04"
+  },
+  {
+    "timestamp": "12:49:15",
+    "channel": "MSP",
+    "message": "MSP <= MSP_BOARD_INFO(4): 24 4D 3E 06 04 50 32 46 43 00 00 65"
+  },
+  {
+    "timestamp": "12:49:15",
+    "channel": "MSP",
+    "message": "MSP -> MSP_BUILD_INFO(5) (read build info): 24 4D 3C 00 05 05"
+  },
+  {
+    "timestamp": "12:49:15",
+    "channel": "MSP",
+    "message": "MSP <= MSP_BUILD_INFO(5): 24 4D 3E 13 05 4D 61 72 20 32 31 20 32 30 32 36 31 32 3A 30 30 3A 30 30 4E"
+  },
+  {
+    "timestamp": "12:49:15",
+    "channel": "MSP",
+    "message": "MSP -> MSP_UID(160) (read UID): 24 4D 3C 00 A0 A0"
+  },
+  {
+    "timestamp": "12:49:15",
+    "channel": "MSP",
+    "message": "MSP <= MSP_UID(160): 24 4D 3E 0C A0 50 49 43 4F 00 00 00 00 00 00 00 00 B9"
+  },
+  {
+    "timestamp": "12:49:15",
+    "channel": "MSP",
+    "message": "MSP -> MSP_STATUS(101) (read status): 24 4D 3C 00 65 65"
+  },
+  {
+    "timestamp": "12:49:15",
+    "channel": "MSP",
+    "message": "MSP <= MSP_STATUS(101): 24 4D 3E 16 65 7D 00 00 00 01 00 00 00 00 00 00 00 00 00 00 00 00 04 00 00 00 00 0B"
+  },
+  {
+    "timestamp": "12:49:15",
+    "channel": "MSP",
+    "message": "MSP -> MSP_FEATURE_CONFIG(36) (read feature config): 24 4D 3C 00 24 24"
+  },
+  {
+    "timestamp": "12:49:15",
+    "channel": "MSP",
+    "message": "MSP <= MSP_FEATURE_CONFIG(36): 24 4D 3E 04 24 00 00 00 00 20"
+  },
+  {
+    "timestamp": "12:49:15",
+    "channel": "MSP",
+    "message": "MSP -> MSP_BATTERY_STATE(130) (read battery state): 24 4D 3C 00 82 82"
+  },
+  {
+    "timestamp": "12:49:15",
+    "channel": "MSP",
+    "message": "MSP <= MSP_BATTERY_STATE(130): 24 4D 3E 09 82 00 00 00 00 00 00 00 00 00 8B"
+  },
+  {
+    "timestamp": "12:49:15",
+    "channel": "MSP",
+    "message": "MSP -> MSP_RC(105) (read rc channels): 24 4D 3C 00 69 69"
+  },
+  {
+    "timestamp": "12:49:15",
+    "channel": "MSP",
+    "message": "MSP <= MSP_RC(105): 24 4D 3E 24 69 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 4D"
+  },
+  {
+    "timestamp": "12:49:15",
+    "channel": "MSP",
+    "message": "MSP -> MSP_ANALOG(110) (read analog): 24 4D 3C 00 6E 6E"
+  },
+  {
+    "timestamp": "12:49:15",
+    "channel": "MSP",
+    "message": "MSP <= MSP_ANALOG(110): 24 4D 3E 07 6E A8 00 00 00 00 00 00 C1"
+  },
+  {
+    "timestamp": "12:49:17",
+    "channel": "MSP",
+    "message": "MSP -> MSP_SET_PASSTHROUGH(245) (enter passthrough motor=0): 24 4D 3C 02 F5 00 00 F7"
+  },
+  {
+    "timestamp": "12:49:17",
+    "channel": "MSP",
+    "message": "MSP <= MSP_SET_PASSTHROUGH(245): 24 4D 3E 01 F5 04 F0"
+  },
+  {
+    "timestamp": "12:49:18",
+    "channel": "4WAY",
+    "message": "4WAY -> get_version(0x31) (read protocol version): 2F 31 00 00 01 00 65 85"
+  },
+  {
+    "timestamp": "12:49:20",
+    "channel": "4WAY",
+    "message": "4WAY -> read_eeprom(0x3D) (read settings): 2F 3D 00 00 01 80 7F 26"
+  },
+  {
+    "timestamp": "12:49:43",
+    "channel": "MSP",
+    "message": "MSP -> MSP_MOTOR(104) (read motor count): 24 4D 3C 00 68 68"
+  },
+  {
+    "timestamp": "12:49:43",
+    "channel": "MSP",
+    "message": "MSP <= MSP_MOTOR(104): 24 4D 3E 08 68 E8 03 E8 03 E8 03 E8 03 60"
+  },
+  {
+    "timestamp": "12:49:43",
+    "channel": "MSP",
+    "message": "MSP -> MSP_API_VERSION(1) (read API version): 24 4D 3C 00 01 01"
+  },
+  {
+    "timestamp": "12:49:43",
+    "channel": "MSP",
+    "message": "MSP <= MSP_API_VERSION(1): 24 4D 3E 03 01 00 01 30 33"
+  },
+  {
+    "timestamp": "12:49:43",
+    "channel": "MSP",
+    "message": "MSP -> MSP_FC_VARIANT(2) (read FC variant): 24 4D 3C 00 02 02"
+  },
+  {
+    "timestamp": "12:49:43",
+    "channel": "MSP",
+    "message": "MSP <= MSP_FC_VARIANT(2): 24 4D 3E 04 02 42 54 46 4C 1A"
+  },
+  {
+    "timestamp": "12:49:43",
+    "channel": "MSP",
+    "message": "MSP -> MSP_FC_VERSION(3) (read FC version): 24 4D 3C 00 03 03"
+  },
+  {
+    "timestamp": "12:49:43",
+    "channel": "MSP",
+    "message": "MSP <= MSP_FC_VERSION(3): 24 4D 3E 03 03 04 05 00 01"
+  },
+  {
+    "timestamp": "12:49:43",
+    "channel": "MSP",
+    "message": "MSP -> MSP_BOARD_INFO(4) (read board info): 24 4D 3C 00 04 04"
+  },
+  {
+    "timestamp": "12:49:43",
+    "channel": "MSP",
+    "message": "MSP <= MSP_BOARD_INFO(4): 24 4D 3E 06 04 50 32 46 43 00 00 65"
+  },
+  {
+    "timestamp": "12:49:43",
+    "channel": "MSP",
+    "message": "MSP -> MSP_BUILD_INFO(5) (read build info): 24 4D 3C 00 05 05"
+  },
+  {
+    "timestamp": "12:49:43",
+    "channel": "MSP",
+    "message": "MSP <= MSP_BUILD_INFO(5): 24 4D 3E 13 05 4D 61 72 20 32 31 20 32 30 32 36 31 32 3A 30 30 3A 30 30 4E"
+  },
+  {
+    "timestamp": "12:49:43",
+    "channel": "MSP",
+    "message": "MSP -> MSP_UID(160) (read UID): 24 4D 3C 00 A0 A0"
+  },
+  {
+    "timestamp": "12:49:43",
+    "channel": "MSP",
+    "message": "MSP <= MSP_UID(160): 24 4D 3E 0C A0 50 49 43 4F 00 00 00 00 00 00 00 00 B9"
+  },
+  {
+    "timestamp": "12:49:43",
+    "channel": "MSP",
+    "message": "MSP -> MSP_STATUS(101) (read status): 24 4D 3C 00 65 65"
+  },
+  {
+    "timestamp": "12:49:43",
+    "channel": "MSP",
+    "message": "MSP <= MSP_STATUS(101): 24 4D 3E 16 65 7D 00 00 00 01 00 00 00 00 00 00 00 00 00 00 00 00 04 00 00 00 00 0B"
+  },
+  {
+    "timestamp": "12:49:43",
+    "channel": "MSP",
+    "message": "MSP -> MSP_FEATURE_CONFIG(36) (read feature config): 24 4D 3C 00 24 24"
+  },
+  {
+    "timestamp": "12:49:43",
+    "channel": "MSP",
+    "message": "MSP <= MSP_FEATURE_CONFIG(36): 24 4D 3E 04 24 00 00 00 00 20"
+  },
+  {
+    "timestamp": "12:49:43",
+    "channel": "MSP",
+    "message": "MSP -> MSP_BATTERY_STATE(130) (read battery state): 24 4D 3C 00 82 82"
+  },
+  {
+    "timestamp": "12:49:43",
+    "channel": "MSP",
+    "message": "MSP <= MSP_BATTERY_STATE(130): 24 4D 3E 09 82 00 00 00 00 00 00 00 00 00 8B"
+  },
+  {
+    "timestamp": "12:49:43",
+    "channel": "MSP",
+    "message": "MSP -> MSP_RC(105) (read rc channels): 24 4D 3C 00 69 69"
+  },
+  {
+    "timestamp": "12:49:43",
+    "channel": "MSP",
+    "message": "MSP <= MSP_RC(105): 24 4D 3E 24 69 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 4D"
+  },
+  {
+    "timestamp": "12:49:43",
+    "channel": "MSP",
+    "message": "MSP -> MSP_ANALOG(110) (read analog): 24 4D 3C 00 6E 6E"
+  },
+  {
+    "timestamp": "12:49:43",
+    "channel": "MSP",
+    "message": "MSP <= MSP_ANALOG(110): 24 4D 3E 07 6E A8 00 00 00 00 00 00 C1"
+  },
+  {
+    "timestamp": "12:49:45",
+    "channel": "MSP",
+    "message": "MSP -> MSP_SET_PASSTHROUGH(245) (enter passthrough motor=0): 24 4D 3C 02 F5 00 00 F7"
+  },
+  {
+    "timestamp": "12:49:45",
+    "channel": "MSP",
+    "message": "MSP <= MSP_SET_PASSTHROUGH(245): 24 4D 3E 01 F5 04 F0"
+  },
+  {
+    "timestamp": "12:49:46",
+    "channel": "4WAY",
+    "message": "4WAY -> get_version(0x31) (read protocol version): 2F 31 00 00 01 00 65 85"
+  },
+  {
+    "timestamp": "12:49:48",
+    "channel": "4WAY",
+    "message": "4WAY -> read_eeprom(0x3D) (read settings): 2F 3D 00 00 01 80 7F 26"
+  }
+]

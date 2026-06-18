@@ -1,3 +1,23 @@
+---
+title: Simulation Bridge Design and Architecture
+doc_type: design
+status: active
+audience:
+  - human
+  - ai-agent
+  - developer
+canonicality: supporting
+subsystem: imgui-esc-config
+purpose: Describe the high-performance simulation architecture used to bridge the Python ESC Configurator and the Verilator simulation of the Tang Nano FPGA.
+related_docs:
+  - ../README.md
+  - README.md
+  - DOC_METADATA_STANDARD.md
+  - TANG9K_STREAM_PROTOCOL.md
+  - DESIGN_PHASE_B.md
+verified_on: 2026-06-17
+---
+
 # Simulation Bridge: Python <=> Verilator
 
 This document describes the high-performance simulation architecture used in Phase B to bridge the **Python ESC Configurator** and the **Tang Nano 20K FPGA** logic.

@@ -148,4 +148,3 @@ Recommended probe wiring:
 - `src/neopixel.h`
 - `src/spi_slave.cpp`
 - `docs/SYSTEM_HOW_IT_WORKS.md`
-- `docs/implementation_details.md`

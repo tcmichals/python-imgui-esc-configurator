@@ -76,11 +76,20 @@ class CommandReadFourWayIdentity:
 
 @dataclass(frozen=True)
 class CommandReadSettings:
-    """Request EEPROM/settings bytes from the active ESC."""
+    """Request EEPROM/settings bytes from a single active ESC (Legacy/Internal)."""
 
     length: int = 128
     address: int = 0
     motor_index: int = 0
+
+
+@dataclass(frozen=True)
+class CommandReadAllSettings:
+    """Request EEPROM/settings bytes from all connected ESCs in sequence."""
+
+    motor_count: int | None = None
+    length: int = 128
+    address: int = 0
 
 
 @dataclass(frozen=True)
@@ -98,9 +107,22 @@ class CommandDownloadFirmware:
 
 @dataclass(frozen=True)
 class CommandWriteSettings:
-    """Request EEPROM/settings write to the active ESC."""
+    """Request EEPROM/settings write to a single active ESC (Legacy/Internal)."""
 
     data: bytes
+    address: int = 0
+    verify_readback: bool = True
+    old_data: bytes = b""
+
+
+@dataclass(frozen=True)
+class CommandWriteAllSettings:
+    """Request EEPROM/settings writes to all connected ESCs."""
+
+    # Dictionary mapping motor_index to the new bytes
+    payloads: dict[int, bytes]
+    # Dictionary mapping motor_index to the original unmodified bytes (for Atmel differential writes)
+    old_payloads: dict[int, bytes]
     address: int = 0
     verify_readback: bool = True
 
@@ -241,6 +263,16 @@ class EventEscScanResult:
 
     esc_count: int
     motor_index: int
+
+
+@dataclass(frozen=True)
+class EventMspIdentity:
+    """FC Identity information probed via MSP."""
+
+    api_version: str | None = None
+    fc_variant: str | None = None
+    fc_version: str | None = None
+    board_name: str | None = None
 
 
 @dataclass(frozen=True)

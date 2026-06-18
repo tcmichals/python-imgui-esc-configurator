@@ -1,3 +1,23 @@
+---
+title: Tang9K Stream Protocol Specifications
+doc_type: design
+status: draft
+audience:
+  - human
+  - ai-agent
+  - developer
+canonicality: supporting
+subsystem: msp
+purpose: Define an optimized binary stream protocol used between desktop tooling and Tang9K firmware for high-rate telemetry and runtime logging.
+related_docs:
+  - ../README.md
+  - README.md
+  - DOC_METADATA_STANDARD.md
+  - DESIGN_PHASE_B.md
+  - SIMULATION_BRIDGE.md
+verified_on: 2026-06-17
+---
+
 # Tang9K Stream Protocol (Draft v1)
 
 This document defines an optimized binary stream used between desktop tooling and Tang9K firmware for high-rate telemetry and runtime logging.

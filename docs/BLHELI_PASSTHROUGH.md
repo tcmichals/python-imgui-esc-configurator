@@ -102,7 +102,9 @@ Current firmware behavior:
 - **One-byte bitfield format** (`mux_sel/mux_ch/msp_mode`):
    - passthrough accepted when `msp_mode=0` and `mux_sel=0`
    - `mux_ch` interpreted as motor select
-- **Legacy two-byte format**: `[mode, motor]` with `mode=SerialEsc`
+- **Legacy two-byte format**: `[mode, motor]` where:
+   - `mode = 0xFF` (`MSP_PASSTHROUGH_ESC_4WAY`) for standard Betaflight (BTFL) Flight Controllers to trigger the 4-way interface bootloader.
+   - `mode = 0x00` (`SerialEsc`) for our custom Pico/Tang offloader firmware.
 
 ### Accepted motor numbering
 
@@ -177,8 +179,72 @@ Software-coded serial is still possible in principle, but for this repository's 
 
 1. Test with one ESC only (known-good signal/ground/power).
 2. Enter passthrough and observe line on scope:
-   - break low pulse present
-   - release high present
-   - subsequent serial activity present
+   - break low pulse present (typically ~100ms)
+   - release high present (typically ~5ms before serial start)
+   - subsequent serial activity present (at 19200 baud)
 3. If no response, test alternate motor channel and confirm pin mux/hardware path.
 4. Compare captured timing against Betaflight reference behavior.
+
+## Troubleshooting ESC Responses (Physical Hardware)
+
+When the flight controller successfully enters passthrough and transmits bootloader init/ping commands on the ESC signal wire (as verified by a logic analyzer or oscilloscope) but no reply is returned by the ESC, troubleshoot using this checklist:
+
+### 1. ESC Power Source (LiPo Battery)
+* **Check**: Standard flight controllers do not supply operating voltage to the ESCs via USB connection alone. The ESC microcontrollers (MCUs) remain completely unpowered.
+* **Action**: Connect a charged LiPo battery to the system's power distribution board/ESC power lines. This powers the ESC logic board, enabling the bootloader to run and listen to the incoming serial stream.
+
+### 2. Motor Channel Mapping / Routing
+* **Check**: Ensure that the software command corresponds to the correct physical port.
+* **Action**: In standard Betaflight controllers, the motor channel mapping is 1-based. If your ESC is physically soldered to the Motor Pin 2 output on the FC, you must query/select motor index 1 (or motor 2, depending on the frontend normalization) to trigger the C2/bootloader handshake on that specific pin. Toggle and test each motor channel to isolate the path.
+
+### 3. Common Ground
+* **Check**: Serial communications require a shared reference potential.
+* **Action**: Verify that the ESC signal ground wire (GND) is soldered to a flight controller ground pad. If only the signal wire is connected, ground loop noise or floating potential will corrupt the serial edges, causing decode failure on the ESC side.
+
+### 4. Input Signal Low-Pass Filter Capacitors
+* **Check**: Some legacy or specific ESC designs place a small capacitor (e.g., 10nF to 47nF) on the PWM input line to filter out high-frequency noise.
+* **Action**: While beneficial for analog PWM, this capacitor acts as a low-pass filter that heavily distorts high-rate digital serial signals (like 19200 baud passthrough or bidirectional DShot). If passthrough consistently fails to establish a link, desolder and remove the input signal filter capacitor from the ESC PCB.
+
+### 5. Bootloader / Firmware Compatibility
+* **Check**: Make sure the ESC firmware and bootloader match the protocol expectations.
+* **Action**: If the ESC has a corrupted bootloader, is completely blank (e.g. brand new MCU without factory programming), or is running a version configured for a non-standard baud rate, it will fail to reply to the standard 19200 baud handshake. Verify with a standalone programmer (such as an Arduino USB Linker) if the ESC continues to fail on a known-good Flight Controller output.
+
+### 6. EEPROM Address Space & Initialization Commands
+* **Check**: Silabs-based ESCs (such as BLHeli_S and Bluejay) do not map their configuration settings at address `0x0000`. In addition, they require an explicit initialization handshake before reading or writing.
+* **Action**:
+  * **Initialization Requirement (`init_flash`)**: You MUST send the `init_flash` (`0x37`) command first to select the ESC and transition the bootloader into programming mode. A successful response returns:
+    * **Bytes 0-1**: MCU signature (big-endian), used to look up MCU-specific parameters.
+    * **Byte 3**: `interfaceMode` (1=Silabs, 2=Atmel, 3=SimonK, 4=ARM).
+    * Example: `E8 B2 63 01` → signature `0xE8B2` (EFM8BB21x), interfaceMode `1` (Silabs).
+    * If `init_flash` is omitted, subsequent read/write commands will fail or time out.
+  * **Correct Settings Address (MCU-Dependent)**: The EEPROM offset depends on the MCU type, resolved from the init_flash signature:
+
+    | MCU Signature | MCU Name | EEPROM Offset | Page Size |
+    |---|---|---|---|
+    | `0xE8B1` | EFM8BB10x (Silabs) | `0x1A00` | 512 |
+    | `0xE8B2` | EFM8BB21x (Silabs) | `0x1A00` | 512 |
+    | `0xE8B5` | EFM8BB51x (Silabs) | `0x3000` | 2048 |
+    | `0x0000` | AM32 default (ARM) | `0x7C00` | 1024 |
+    | `0x1F32` | AT32F421 (ARM) | `0xF800` | 1024 |
+
+  * **Correct Settings Length**:
+    * **BLHeli_S**: 48 bytes.
+    * **Bluejay**: 128 bytes.
+  * **Page Erase Before Settings Write (Silabs Only)**:
+    * Silabs flash requires erasing the EEPROM page before writing settings. Erase page number = `eepromOffset / pageSize * pageMultiplier` (where `pageMultiplier = 4` if `pageSize != 512`, else `1`).
+    * ARM ESCs do NOT require the erase step.
+  * **Lock Byte Check (Silabs EFM8 Only)**:
+    * The lock byte at `lockbyte_address` should be `0xFF` (unlocked). A non-0xFF value indicates code protection is active.
+  * **Betaflight Protocol Constraints & JavaScript Reference**:
+    * In standard Betaflight controllers (`src/main/io/serial_4way.c`), `cmd_DeviceReadEEprom` (`0x3D`) and `cmd_DeviceWriteEEprom` (`0x3E`) are **not supported** for Silabs bootloader mode (`imSIL_BLB`).
+    * Specifically, `cmd_DeviceReadEEprom` falls through to `default` returning `ACK_I_INVALID_CMD` (`0x02`), and `cmd_DeviceWriteEEprom` has an explicit case returning `ACK_I_INVALID_CMD`.
+    * This behavior is mapped in the web configurator's JS client (`webapp/esc-configurator/src/utils/FourWay.js` under `getInfo` and `writeSettings`), which branches settings read/write operations by MCU class:
+      * **Silabs ESCs** use `read` (`0x3A`) and `write` (`0x3B`) commands targeting the MCU-specific EEPROM offset.
+      * **ARM ESCs** use `read` (`0x3A`) and `write` (`0x3B`) commands targeting the MCU-specific EEPROM offset.
+      * **Atmel ESCs** use `readEEprom` (`0x3D`) and `writeEEprom` (`0x3E`).
+  * **Configurator Implementation**:
+    * The Python desktop configurator reads the `interfaceMode` byte and MCU signature from the `init_flash` response.
+    * The MCU signature is looked up in `mcu_descriptors.py` to resolve the correct EEPROM offset, page size, and lock byte address.
+    * If the ESC is Silabs (`1`) or ARM (`4`), it dynamically routes settings read/write/verification to use `read` (`0x3A`) and `write` (`0x3B`) commands.
+    * For Silabs ESCs, a page erase is performed before writing settings.
+    * If `settings_rw_address` is `0` (default for BTFL variant), the worker auto-detects the correct address from the MCU descriptor.

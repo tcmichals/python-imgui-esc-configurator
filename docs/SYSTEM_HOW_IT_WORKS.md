@@ -181,6 +181,93 @@ This dynamic pin switching (DSHOT → UART → DSHOT) is the core of what the Be
 For exact transition sequencing notes (line-low/line-high bootloader handoff) and direct Betaflight source pointers, see:
 - `docs/BLHELI_PASSTHROUGH.md`
 
+#### 4-Way Protocol Commands and ACK Codes
+
+The 4-way protocol uses `0x2F` as a host sync byte and `0x2E` as a device response sync byte. Core command IDs:
+
+| Cmd ID | Name | Purpose |
+|--------|------|---------|
+| `0x30` | `cmd_InterfaceTestAlive` | Ping / keepalive |
+| `0x34` | `cmd_InterfaceExit` | Close passthrough, reset pins |
+| `0x35` | `cmd_DeviceReset` | Hard reset ESC MCU |
+| `0x37` | `cmd_DeviceInitFlash` | Initialize flash programming mode (**must be sent first**) |
+| `0x39` | `cmd_DevicePageErase` | Erase flash page |
+| `0x3A` | `cmd_DeviceRead` | Read chunk from flash memory |
+| `0x3B` | `cmd_DeviceWrite` | Write chunk to flash memory |
+| `0x3D` | `cmd_DeviceReadEEprom` | Read settings from EEPROM (Atmel/SimonK only) |
+| `0x3E` | `cmd_DeviceWriteEEprom` | Write settings to EEPROM (Atmel/SimonK only) |
+
+ACK status codes returned in the response frame:
+
+| Code | Name | Meaning |
+|------|------|---------|
+| `0x00` | `ACK_OK` | Transaction succeeded |
+| `0x01` | `ACK_I_ERROR` | Interface error / sync failed |
+| `0x02` | `ACK_I_INVALID_CMD` | Command not supported for this MCU/bootloader class |
+| `0x03` | `ACK_VERIFY_ERROR` | Flash verification failed |
+| `0x04` | `ACK_CMD_UNKNOWN` | Command not recognized by the interface |
+
+#### Betaflight Protocol Constraint: EEPROM Commands Blocked for Silabs/ARM
+
+> **CRITICAL**: In standard Betaflight firmware (`src/main/io/serial_4way.c`), `cmd_DeviceReadEEprom` (`0x3D`) and `cmd_DeviceWriteEEprom` (`0x3E`) are **not implemented** for Silabs (`imSIL_BLB`) or ARM (`imARM_BLB`) bootloader modes. These commands return `ACK_I_INVALID_CMD` (`0x02`).
+
+This is the root cause of `INVALID_CMD` failures when a host tool unconditionally sends EEPROM read/write commands to a Silabs-based ESC (BLHeli_S, Bluejay) through a Betaflight flight controller.
+
+The `serial_4way.c` switch statement handles it as follows:
+- `cmd_DeviceReadEEprom` (`0x3D`): Falls through to `default`, returning `ACK_I_INVALID_CMD`.
+- `cmd_DeviceWriteEEprom` (`0x3E`): Has an explicit `case` that returns `ACK_I_INVALID_CMD`.
+- Only **Atmel** (`imATM_BLB`) and **SimonK** (`imSK`) bootloader modes implement these EEPROM commands.
+
+#### Dynamic Command Routing by interfaceMode
+
+The `cmd_DeviceInitFlash` (`0x37`) response payload contains a critical `interfaceMode` byte (byte index 3) that identifies the ESC MCU/bootloader class. The host configurator **must** inspect this byte and route read/write operations accordingly:
+
+| interfaceMode | MCU Class | Settings Read Command | Settings Write Command |
+|---|---|---|---|
+| `1` (`imSIL_BLB`) | Silabs (BLHeli_S, Bluejay) | `cmd_DeviceRead` (`0x3A`) | `cmd_DeviceWrite` (`0x3B`) |
+| `2` (`imATM_BLB`) | Atmel | `cmd_DeviceReadEEprom` (`0x3D`) | `cmd_DeviceWriteEEprom` (`0x3E`) |
+| `3` (`imSK`) | SimonK | `cmd_DeviceReadEEprom` (`0x3D`) | `cmd_DeviceWriteEEprom` (`0x3E`) |
+| `4` (`imARM_BLB`) | ARM | `cmd_DeviceRead` (`0x3A`) | `cmd_DeviceWrite` (`0x3B`) |
+
+**JavaScript reference**: The web configurator (`esc-configurator/src/utils/FourWay.js`) implements this branching in the `getInfo` and `writeSettings` methods, reading the ESC interface mode and selecting the appropriate command path. Early Python ports missed this conditional branching and unconditionally used EEPROM commands, resulting in failures on standard Betaflight flight controllers.
+
+#### Settings Memory Map
+
+Silabs and ARM ESCs store configuration settings at MCU-dependent flash addresses, **not** at `0x0000`. The correct address is resolved from the MCU signature returned by `init_flash`:
+
+| MCU Signature | MCU Name | EEPROM Offset | Page Size | Notes |
+|---|---|---|---|---|
+| `0xE8B1` | EFM8BB10x | `0x1A00` | 512 | BLHeli_S / Bluejay |
+| `0xE8B2` | EFM8BB21x | `0x1A00` | 512 | Most common BLHeli_S / Bluejay MCU |
+| `0xE8B5` | EFM8BB51x | `0x3000` | 2048 | Newer Silabs |
+| `0x0000` | AM32 (ARM) | `0x7C00` | 1024 | AM32 ARM ESCs |
+| `0x1F32` | AT32F421 (ARM) | `0xF800` | 1024 | AT32 variant |
+
+Settings lengths:
+| Family | Length |
+|---|---|
+| BLHeli_S | 48 bytes |
+| Bluejay | 128 bytes |
+
+> **Note**: Reading/writing address `0x0000` on a real Betaflight flight controller will result in `ACK_I_INVALID_CMD` (`0x02`) or a timeout. The Python desktop configurator auto-detects the correct address from the MCU descriptor table (`mcu_descriptors.py`).
+
+#### Page Erase Before Settings Write (Silabs Only)
+
+Silabs flash memory requires **erasing the settings page before writing**. The erase page number is calculated as:
+`eepromOffset / pageSize * pageMultiplier` (where `pageMultiplier = 4` if `pageSize != 512`, else `1`).
+
+ARM ESCs do **not** require the erase step.
+
+#### Initialization Requirement
+
+Before any read or write operation, the host **must** send `cmd_DeviceInitFlash` (`0x37`) to select the ESC and transition the bootloader into programming mode. A successful response returns:
+- **Bytes 0-1**: MCU signature (big-endian, used for MCU descriptor lookup)
+- **Byte 3**: `interfaceMode` (1=Silabs, 2=Atmel, 3=SimonK, 4=ARM)
+
+Example: response `E8 B2 63 01` → signature `0xE8B2` (EFM8BB21x), interfaceMode `1` (Silabs).
+
+If `init_flash` is omitted, subsequent commands will fail or time out.
+
 ---
 
 ### 4. SPI Slave Protocol (Host Communication)

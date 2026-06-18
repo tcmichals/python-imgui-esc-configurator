@@ -35,6 +35,11 @@ class SerialTransport:
 
     def __init__(self, port: str, baudrate: int = 115200, timeout: float = 0.1):
         self._serial = serial.Serial(port, baudrate, timeout=timeout)
+        try:
+            self._serial.dtr = True
+            self._serial.rts = True
+        except Exception:
+            pass
         time.sleep(0.05)
 
     @property

@@ -1,0 +1,1202 @@
+[
+  {
+    "timestamp": "12:44:20",
+    "level": "INFO",
+    "source": "ESC",
+    "message": "DSHOT speed set: motor 0 -> 1558"
+  },
+  {
+    "timestamp": "12:44:20",
+    "level": "INFO",
+    "source": "ESC",
+    "message": "DSHOT speed set: motor 0 -> 1562"
+  },
+  {
+    "timestamp": "12:44:20",
+    "level": "INFO",
+    "source": "ESC",
+    "message": "DSHOT speed set: motor 0 -> 1564"
+  },
+  {
+    "timestamp": "12:44:20",
+    "level": "INFO",
+    "source": "ESC",
+    "message": "DSHOT speed set: motor 0 -> 1618"
+  },
+  {
+    "timestamp": "12:44:20",
+    "level": "INFO",
+    "source": "ESC",
+    "message": "DSHOT speed set: motor 0 -> 1638"
+  },
+  {
+    "timestamp": "12:44:20",
+    "level": "INFO",
+    "source": "ESC",
+    "message": "DSHOT speed set: motor 0 -> 1656"
+  },
+  {
+    "timestamp": "12:44:20",
+    "level": "INFO",
+    "source": "ESC",
+    "message": "DSHOT speed set: motor 0 -> 1689"
+  },
+  {
+    "timestamp": "12:44:21",
+    "level": "INFO",
+    "source": "ESC",
+    "message": "DSHOT speed set: motor 0 -> 1691"
+  },
+  {
+    "timestamp": "12:44:21",
+    "level": "INFO",
+    "source": "ESC",
+    "message": "DSHOT speed set: motor 0 -> 1693"
+  },
+  {
+    "timestamp": "12:44:21",
+    "level": "INFO",
+    "source": "ESC",
+    "message": "DSHOT speed set: motor 0 -> 1708"
+  },
+  {
+    "timestamp": "12:44:21",
+    "level": "INFO",
+    "source": "ESC",
+    "message": "DSHOT speed set: motor 0 -> 1769"
+  },
+  {
+    "timestamp": "12:44:21",
+    "level": "INFO",
+    "source": "ESC",
+    "message": "DSHOT speed set: motor 0 -> 1824"
+  },
+  {
+    "timestamp": "12:44:21",
+    "level": "INFO",
+    "source": "ESC",
+    "message": "DSHOT speed set: motor 0 -> 1861"
+  },
+  {
+    "timestamp": "12:44:21",
+    "level": "INFO",
+    "source": "ESC",
+    "message": "DSHOT speed set: motor 0 -> 1873"
+  },
+  {
+    "timestamp": "12:44:21",
+    "level": "INFO",
+    "source": "ESC",
+    "message": "DSHOT speed set: motor 0 -> 1908"
+  },
+  {
+    "timestamp": "12:44:21",
+    "level": "INFO",
+    "source": "ESC",
+    "message": "DSHOT speed set: motor 0 -> 1930"
+  },
+  {
+    "timestamp": "12:44:21",
+    "level": "INFO",
+    "source": "ESC",
+    "message": "DSHOT speed set: motor 0 -> 1937"
+  },
+  {
+    "timestamp": "12:44:21",
+    "level": "INFO",
+    "source": "ESC",
+    "message": "DSHOT speed set: motor 0 -> 1945"
+  },
+  {
+    "timestamp": "12:44:21",
+    "level": "INFO",
+    "source": "ESC",
+    "message": "DSHOT speed set: motor 0 -> 1963"
+  },
+  {
+    "timestamp": "12:44:21",
+    "level": "INFO",
+    "source": "ESC",
+    "message": "DSHOT speed set: motor 0 -> 2000"
+  },
+  {
+    "timestamp": "12:44:21",
+    "level": "INFO",
+    "source": "ESC",
+    "message": "DSHOT speed set: motor 0 -> 1978"
+  },
+  {
+    "timestamp": "12:44:21",
+    "level": "INFO",
+    "source": "ESC",
+    "message": "DSHOT speed set: motor 0 -> 1881"
+  },
+  {
+    "timestamp": "12:44:22",
+    "level": "INFO",
+    "source": "ESC",
+    "message": "DSHOT speed set: motor 0 -> 1771"
+  },
+  {
+    "timestamp": "12:44:22",
+    "level": "INFO",
+    "source": "ESC",
+    "message": "DSHOT speed set: motor 0 -> 1661"
+  },
+  {
+    "timestamp": "12:44:22",
+    "level": "INFO",
+    "source": "ESC",
+    "message": "DSHOT speed set: motor 0 -> 1620"
+  },
+  {
+    "timestamp": "12:44:22",
+    "level": "INFO",
+    "source": "ESC",
+    "message": "DSHOT speed set: motor 0 -> 1413"
+  },
+  {
+    "timestamp": "12:44:22",
+    "level": "INFO",
+    "source": "ESC",
+    "message": "DSHOT speed set: motor 0 -> 1339"
+  },
+  {
+    "timestamp": "12:44:22",
+    "level": "INFO",
+    "source": "ESC",
+    "message": "DSHOT speed set: motor 0 -> 1315"
+  },
+  {
+    "timestamp": "12:44:22",
+    "level": "INFO",
+    "source": "ESC",
+    "message": "DSHOT speed set: motor 0 -> 1290"
+  },
+  {
+    "timestamp": "12:44:22",
+    "level": "INFO",
+    "source": "ESC",
+    "message": "DSHOT speed set: motor 0 -> 1202"
+  },
+  {
+    "timestamp": "12:44:22",
+    "level": "INFO",
+    "source": "ESC",
+    "message": "DSHOT speed set: motor 0 -> 1139"
+  },
+  {
+    "timestamp": "12:44:22",
+    "level": "INFO",
+    "source": "ESC",
+    "message": "DSHOT speed set: motor 0 -> 1094"
+  },
+  {
+    "timestamp": "12:44:22",
+    "level": "INFO",
+    "source": "ESC",
+    "message": "DSHOT speed set: motor 0 -> 1063"
+  },
+  {
+    "timestamp": "12:44:22",
+    "level": "INFO",
+    "source": "ESC",
+    "message": "DSHOT speed set: motor 0 -> 1014"
+  },
+  {
+    "timestamp": "12:44:22",
+    "level": "INFO",
+    "source": "ESC",
+    "message": "DSHOT speed set: motor 0 -> 1000"
+  },
+  {
+    "timestamp": "12:44:26",
+    "level": "WARNING",
+    "source": "ESC",
+    "message": "ESC transition timing: serial handoff attempt on motor 0 did not activate in 1.0 ms"
+  },
+  {
+    "timestamp": "12:44:26",
+    "level": "WARNING",
+    "source": "WORKER",
+    "message": "Passthrough is not active; enter passthrough before 4-way identity read"
+  },
+  {
+    "timestamp": "12:44:34",
+    "level": "WARNING",
+    "source": "ESC",
+    "message": "ESC transition timing: serial handoff attempt on motor 0 did not activate in 0.3 ms"
+  },
+  {
+    "timestamp": "12:44:34",
+    "level": "WARNING",
+    "source": "WORKER",
+    "message": "Passthrough is not active; enter passthrough before 4-way identity read"
+  },
+  {
+    "timestamp": "12:44:46",
+    "level": "INFO",
+    "source": "WORKER",
+    "message": "Disconnected"
+  },
+  {
+    "timestamp": "12:44:49",
+    "level": "INFO",
+    "source": "MSP",
+    "message": "FC reported motor count: 4"
+  },
+  {
+    "timestamp": "12:44:49",
+    "level": "INFO",
+    "source": "WORKER",
+    "message": "Connected to /dev/ttyACM1 @ 115200 (MSP protocol)"
+  },
+  {
+    "timestamp": "12:44:49",
+    "level": "INFO",
+    "source": "MSP",
+    "message": "MSP API version: 0.1.48"
+  },
+  {
+    "timestamp": "12:44:49",
+    "level": "INFO",
+    "source": "MSP",
+    "message": "FC variant: BTFL"
+  },
+  {
+    "timestamp": "12:44:49",
+    "level": "INFO",
+    "source": "MSP",
+    "message": "FC version: 4.5.0"
+  },
+  {
+    "timestamp": "12:44:49",
+    "level": "INFO",
+    "source": "MSP",
+    "message": "Board info: P2FC"
+  },
+  {
+    "timestamp": "12:44:49",
+    "level": "INFO",
+    "source": "MSP",
+    "message": "Build info: Mar 21 202612:00:00"
+  },
+  {
+    "timestamp": "12:44:49",
+    "level": "INFO",
+    "source": "MSP",
+    "message": "UID: 5049434F0000000000000000"
+  },
+  {
+    "timestamp": "12:44:49",
+    "level": "INFO",
+    "source": "MSP",
+    "message": "Status payload: 7D 00 00 00 01 00 00 00 00 00 00 00 00 00 00 00 00 04 00 00 00 00"
+  },
+  {
+    "timestamp": "12:44:49",
+    "level": "INFO",
+    "source": "MSP",
+    "message": "Feature config payload: 00 00 00 00"
+  },
+  {
+    "timestamp": "12:44:49",
+    "level": "INFO",
+    "source": "MSP",
+    "message": "Battery state payload: 00 00 00 00 00 00 00 00 00"
+  },
+  {
+    "timestamp": "12:44:49",
+    "level": "INFO",
+    "source": "MSP",
+    "message": "RC payload: DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05"
+  },
+  {
+    "timestamp": "12:44:49",
+    "level": "INFO",
+    "source": "MSP",
+    "message": "Analog payload: A8 00 00 00 00 00 00"
+  },
+  {
+    "timestamp": "12:44:58",
+    "level": "INFO",
+    "source": "WORKER",
+    "message": "Passthrough active on motor 0; ESC count=4"
+  },
+  {
+    "timestamp": "12:44:58",
+    "level": "INFO",
+    "source": "ESC",
+    "message": "ESC transition timing: switched to ESC serial on motor 0 in 17.5 ms (ESC count=4)"
+  },
+  {
+    "timestamp": "12:44:58",
+    "level": "INFO",
+    "source": "WORKER",
+    "message": "Auto-entered passthrough on motor 0 before reading settings"
+  },
+  {
+    "timestamp": "12:44:58",
+    "level": "INFO",
+    "source": "ESC",
+    "message": "ESC stabilization delay: waiting 1200 ms before reading settings"
+  },
+  {
+    "timestamp": "12:45:01",
+    "level": "WARNING",
+    "source": "4WAY",
+    "message": "4-way identity bootstrap failed before settings read: timeout waiting for 4-way response sync"
+  },
+  {
+    "timestamp": "12:45:03",
+    "level": "ERROR",
+    "source": "WORKER",
+    "message": "Settings read failed: timeout waiting for 4-way response sync"
+  },
+  {
+    "timestamp": "12:45:03",
+    "level": "INFO",
+    "source": "WORKER",
+    "message": "Transport lost during settings read: timeout waiting for 4-way response sync"
+  },
+  {
+    "timestamp": "12:45:09",
+    "level": "INFO",
+    "source": "MSP",
+    "message": "FC reported motor count: 4"
+  },
+  {
+    "timestamp": "12:45:09",
+    "level": "INFO",
+    "source": "WORKER",
+    "message": "Connected to /dev/ttyACM1 @ 115200 (MSP protocol)"
+  },
+  {
+    "timestamp": "12:45:09",
+    "level": "INFO",
+    "source": "MSP",
+    "message": "MSP API version: 0.1.48"
+  },
+  {
+    "timestamp": "12:45:09",
+    "level": "INFO",
+    "source": "MSP",
+    "message": "FC variant: BTFL"
+  },
+  {
+    "timestamp": "12:45:09",
+    "level": "INFO",
+    "source": "MSP",
+    "message": "FC version: 4.5.0"
+  },
+  {
+    "timestamp": "12:45:09",
+    "level": "INFO",
+    "source": "MSP",
+    "message": "Board info: P2FC"
+  },
+  {
+    "timestamp": "12:45:09",
+    "level": "INFO",
+    "source": "MSP",
+    "message": "Build info: Mar 21 202612:00:00"
+  },
+  {
+    "timestamp": "12:45:09",
+    "level": "INFO",
+    "source": "MSP",
+    "message": "UID: 5049434F0000000000000000"
+  },
+  {
+    "timestamp": "12:45:09",
+    "level": "INFO",
+    "source": "MSP",
+    "message": "Status payload: 7D 00 00 00 01 00 00 00 00 00 00 00 00 00 00 00 00 04 00 00 00 00"
+  },
+  {
+    "timestamp": "12:45:09",
+    "level": "INFO",
+    "source": "MSP",
+    "message": "Feature config payload: 00 00 00 00"
+  },
+  {
+    "timestamp": "12:45:09",
+    "level": "INFO",
+    "source": "MSP",
+    "message": "Battery state payload: 00 00 00 00 00 00 00 00 00"
+  },
+  {
+    "timestamp": "12:45:09",
+    "level": "INFO",
+    "source": "MSP",
+    "message": "RC payload: DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05"
+  },
+  {
+    "timestamp": "12:45:09",
+    "level": "INFO",
+    "source": "MSP",
+    "message": "Analog payload: A8 00 00 00 00 00 00"
+  },
+  {
+    "timestamp": "12:45:12",
+    "level": "INFO",
+    "source": "WORKER",
+    "message": "Passthrough active on motor 0; ESC count=4"
+  },
+  {
+    "timestamp": "12:45:12",
+    "level": "INFO",
+    "source": "ESC",
+    "message": "ESC transition timing: switched to ESC serial on motor 0 in 16.6 ms (ESC count=4)"
+  },
+  {
+    "timestamp": "12:45:12",
+    "level": "INFO",
+    "source": "WORKER",
+    "message": "Auto-entered passthrough on motor 0 before reading settings"
+  },
+  {
+    "timestamp": "12:45:12",
+    "level": "INFO",
+    "source": "ESC",
+    "message": "ESC stabilization delay: waiting 1200 ms before reading settings"
+  },
+  {
+    "timestamp": "12:45:15",
+    "level": "WARNING",
+    "source": "4WAY",
+    "message": "4-way identity bootstrap failed before settings read: timeout waiting for 4-way response sync"
+  },
+  {
+    "timestamp": "12:45:17",
+    "level": "ERROR",
+    "source": "WORKER",
+    "message": "Settings read failed: timeout waiting for 4-way response sync"
+  },
+  {
+    "timestamp": "12:45:17",
+    "level": "INFO",
+    "source": "WORKER",
+    "message": "Transport lost during settings read: timeout waiting for 4-way response sync"
+  },
+  {
+    "timestamp": "12:45:22",
+    "level": "INFO",
+    "source": "MSP",
+    "message": "FC reported motor count: 4"
+  },
+  {
+    "timestamp": "12:45:22",
+    "level": "INFO",
+    "source": "WORKER",
+    "message": "Connected to /dev/ttyACM1 @ 115200 (MSP protocol)"
+  },
+  {
+    "timestamp": "12:45:22",
+    "level": "INFO",
+    "source": "MSP",
+    "message": "MSP API version: 0.1.48"
+  },
+  {
+    "timestamp": "12:45:22",
+    "level": "INFO",
+    "source": "MSP",
+    "message": "FC variant: BTFL"
+  },
+  {
+    "timestamp": "12:45:22",
+    "level": "INFO",
+    "source": "MSP",
+    "message": "FC version: 4.5.0"
+  },
+  {
+    "timestamp": "12:45:22",
+    "level": "INFO",
+    "source": "MSP",
+    "message": "Board info: P2FC"
+  },
+  {
+    "timestamp": "12:45:22",
+    "level": "INFO",
+    "source": "MSP",
+    "message": "Build info: Mar 21 202612:00:00"
+  },
+  {
+    "timestamp": "12:45:22",
+    "level": "INFO",
+    "source": "MSP",
+    "message": "UID: 5049434F0000000000000000"
+  },
+  {
+    "timestamp": "12:45:22",
+    "level": "INFO",
+    "source": "MSP",
+    "message": "Status payload: 7D 00 00 00 01 00 00 00 00 00 00 00 00 00 00 00 00 04 00 00 00 00"
+  },
+  {
+    "timestamp": "12:45:22",
+    "level": "INFO",
+    "source": "MSP",
+    "message": "Feature config payload: 00 00 00 00"
+  },
+  {
+    "timestamp": "12:45:22",
+    "level": "INFO",
+    "source": "MSP",
+    "message": "Battery state payload: 00 00 00 00 00 00 00 00 00"
+  },
+  {
+    "timestamp": "12:45:22",
+    "level": "INFO",
+    "source": "MSP",
+    "message": "RC payload: DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05"
+  },
+  {
+    "timestamp": "12:45:22",
+    "level": "INFO",
+    "source": "MSP",
+    "message": "Analog payload: A8 00 00 00 00 00 00"
+  },
+  {
+    "timestamp": "12:45:24",
+    "level": "INFO",
+    "source": "WORKER",
+    "message": "Passthrough active on motor 0; ESC count=4"
+  },
+  {
+    "timestamp": "12:45:24",
+    "level": "INFO",
+    "source": "ESC",
+    "message": "ESC transition timing: switched to ESC serial on motor 0 in 17.4 ms (ESC count=4)"
+  },
+  {
+    "timestamp": "12:45:24",
+    "level": "INFO",
+    "source": "WORKER",
+    "message": "Auto-entered passthrough on motor 0 before reading settings"
+  },
+  {
+    "timestamp": "12:45:24",
+    "level": "INFO",
+    "source": "ESC",
+    "message": "ESC stabilization delay: waiting 1200 ms before reading settings"
+  },
+  {
+    "timestamp": "12:45:28",
+    "level": "WARNING",
+    "source": "4WAY",
+    "message": "4-way identity bootstrap failed before settings read: timeout waiting for 4-way response sync"
+  },
+  {
+    "timestamp": "12:45:30",
+    "level": "ERROR",
+    "source": "WORKER",
+    "message": "Settings read failed: timeout waiting for 4-way response sync"
+  },
+  {
+    "timestamp": "12:45:30",
+    "level": "INFO",
+    "source": "WORKER",
+    "message": "Transport lost during settings read: timeout waiting for 4-way response sync"
+  },
+  {
+    "timestamp": "12:48:08",
+    "level": "INFO",
+    "source": "MSP",
+    "message": "FC reported motor count: 4"
+  },
+  {
+    "timestamp": "12:48:09",
+    "level": "INFO",
+    "source": "WORKER",
+    "message": "Connected to /dev/ttyACM1 @ 115200 (MSP protocol)"
+  },
+  {
+    "timestamp": "12:48:09",
+    "level": "INFO",
+    "source": "MSP",
+    "message": "MSP API version: 0.1.48"
+  },
+  {
+    "timestamp": "12:48:09",
+    "level": "INFO",
+    "source": "MSP",
+    "message": "FC variant: BTFL"
+  },
+  {
+    "timestamp": "12:48:09",
+    "level": "INFO",
+    "source": "MSP",
+    "message": "FC version: 4.5.0"
+  },
+  {
+    "timestamp": "12:48:09",
+    "level": "INFO",
+    "source": "MSP",
+    "message": "Board info: P2FC"
+  },
+  {
+    "timestamp": "12:48:09",
+    "level": "INFO",
+    "source": "MSP",
+    "message": "Build info: Mar 21 202612:00:00"
+  },
+  {
+    "timestamp": "12:48:09",
+    "level": "INFO",
+    "source": "MSP",
+    "message": "UID: 5049434F0000000000000000"
+  },
+  {
+    "timestamp": "12:48:09",
+    "level": "INFO",
+    "source": "MSP",
+    "message": "Status payload: 7D 00 00 00 01 00 00 00 00 00 00 00 00 00 00 00 00 04 00 00 00 00"
+  },
+  {
+    "timestamp": "12:48:09",
+    "level": "INFO",
+    "source": "MSP",
+    "message": "Feature config payload: 00 00 00 00"
+  },
+  {
+    "timestamp": "12:48:09",
+    "level": "INFO",
+    "source": "MSP",
+    "message": "Battery state payload: 00 00 00 00 00 00 00 00 00"
+  },
+  {
+    "timestamp": "12:48:09",
+    "level": "INFO",
+    "source": "MSP",
+    "message": "RC payload: DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05"
+  },
+  {
+    "timestamp": "12:48:09",
+    "level": "INFO",
+    "source": "MSP",
+    "message": "Analog payload: A8 00 00 00 00 00 00"
+  },
+  {
+    "timestamp": "12:48:10",
+    "level": "INFO",
+    "source": "WORKER",
+    "message": "Passthrough active on motor 0; ESC count=4"
+  },
+  {
+    "timestamp": "12:48:10",
+    "level": "INFO",
+    "source": "ESC",
+    "message": "ESC transition timing: switched to ESC serial on motor 0 in 17.2 ms (ESC count=4)"
+  },
+  {
+    "timestamp": "12:48:10",
+    "level": "INFO",
+    "source": "WORKER",
+    "message": "Auto-entered passthrough on motor 0 before reading settings"
+  },
+  {
+    "timestamp": "12:48:10",
+    "level": "INFO",
+    "source": "ESC",
+    "message": "ESC stabilization delay: waiting 1200 ms before reading settings"
+  },
+  {
+    "timestamp": "12:48:14",
+    "level": "WARNING",
+    "source": "4WAY",
+    "message": "4-way identity bootstrap failed before settings read: timeout waiting for 4-way response sync"
+  },
+  {
+    "timestamp": "12:48:16",
+    "level": "ERROR",
+    "source": "WORKER",
+    "message": "Settings read failed: timeout waiting for 4-way response sync"
+  },
+  {
+    "timestamp": "12:48:16",
+    "level": "INFO",
+    "source": "WORKER",
+    "message": "Transport lost during settings read: timeout waiting for 4-way response sync"
+  },
+  {
+    "timestamp": "12:48:31",
+    "level": "INFO",
+    "source": "MSP",
+    "message": "FC reported motor count: 4"
+  },
+  {
+    "timestamp": "12:48:31",
+    "level": "INFO",
+    "source": "WORKER",
+    "message": "Connected to /dev/ttyACM1 @ 115200 (MSP protocol)"
+  },
+  {
+    "timestamp": "12:48:31",
+    "level": "INFO",
+    "source": "MSP",
+    "message": "MSP API version: 0.1.48"
+  },
+  {
+    "timestamp": "12:48:31",
+    "level": "INFO",
+    "source": "MSP",
+    "message": "FC variant: BTFL"
+  },
+  {
+    "timestamp": "12:48:31",
+    "level": "INFO",
+    "source": "MSP",
+    "message": "FC version: 4.5.0"
+  },
+  {
+    "timestamp": "12:48:31",
+    "level": "INFO",
+    "source": "MSP",
+    "message": "Board info: P2FC"
+  },
+  {
+    "timestamp": "12:48:31",
+    "level": "INFO",
+    "source": "MSP",
+    "message": "Build info: Mar 21 202612:00:00"
+  },
+  {
+    "timestamp": "12:48:31",
+    "level": "INFO",
+    "source": "MSP",
+    "message": "UID: 5049434F0000000000000000"
+  },
+  {
+    "timestamp": "12:48:31",
+    "level": "INFO",
+    "source": "MSP",
+    "message": "Status payload: 7D 00 00 00 01 00 00 00 00 00 00 00 00 00 00 00 00 04 00 00 00 00"
+  },
+  {
+    "timestamp": "12:48:31",
+    "level": "INFO",
+    "source": "MSP",
+    "message": "Feature config payload: 00 00 00 00"
+  },
+  {
+    "timestamp": "12:48:31",
+    "level": "INFO",
+    "source": "MSP",
+    "message": "Battery state payload: 00 00 00 00 00 00 00 00 00"
+  },
+  {
+    "timestamp": "12:48:31",
+    "level": "INFO",
+    "source": "MSP",
+    "message": "RC payload: DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05"
+  },
+  {
+    "timestamp": "12:48:31",
+    "level": "INFO",
+    "source": "MSP",
+    "message": "Analog payload: A8 00 00 00 00 00 00"
+  },
+  {
+    "timestamp": "12:48:34",
+    "level": "INFO",
+    "source": "WORKER",
+    "message": "Passthrough active on motor 0; ESC count=4"
+  },
+  {
+    "timestamp": "12:48:34",
+    "level": "INFO",
+    "source": "ESC",
+    "message": "ESC transition timing: switched to ESC serial on motor 0 in 16.4 ms (ESC count=4)"
+  },
+  {
+    "timestamp": "12:48:34",
+    "level": "INFO",
+    "source": "WORKER",
+    "message": "Auto-entered passthrough on motor 0 before reading settings"
+  },
+  {
+    "timestamp": "12:48:34",
+    "level": "INFO",
+    "source": "ESC",
+    "message": "ESC stabilization delay: waiting 1200 ms before reading settings"
+  },
+  {
+    "timestamp": "12:48:38",
+    "level": "WARNING",
+    "source": "4WAY",
+    "message": "4-way identity bootstrap failed before settings read: timeout waiting for 4-way response sync"
+  },
+  {
+    "timestamp": "12:48:40",
+    "level": "ERROR",
+    "source": "WORKER",
+    "message": "Settings read failed: timeout waiting for 4-way response sync"
+  },
+  {
+    "timestamp": "12:48:40",
+    "level": "INFO",
+    "source": "WORKER",
+    "message": "Transport lost during settings read: timeout waiting for 4-way response sync"
+  },
+  {
+    "timestamp": "12:48:55",
+    "level": "INFO",
+    "source": "MSP",
+    "message": "FC reported motor count: 4"
+  },
+  {
+    "timestamp": "12:48:55",
+    "level": "INFO",
+    "source": "WORKER",
+    "message": "Connected to /dev/ttyACM1 @ 115200 (MSP protocol)"
+  },
+  {
+    "timestamp": "12:48:55",
+    "level": "INFO",
+    "source": "MSP",
+    "message": "MSP API version: 0.1.48"
+  },
+  {
+    "timestamp": "12:48:55",
+    "level": "INFO",
+    "source": "MSP",
+    "message": "FC variant: BTFL"
+  },
+  {
+    "timestamp": "12:48:55",
+    "level": "INFO",
+    "source": "MSP",
+    "message": "FC version: 4.5.0"
+  },
+  {
+    "timestamp": "12:48:55",
+    "level": "INFO",
+    "source": "MSP",
+    "message": "Board info: P2FC"
+  },
+  {
+    "timestamp": "12:48:55",
+    "level": "INFO",
+    "source": "MSP",
+    "message": "Build info: Mar 21 202612:00:00"
+  },
+  {
+    "timestamp": "12:48:55",
+    "level": "INFO",
+    "source": "MSP",
+    "message": "UID: 5049434F0000000000000000"
+  },
+  {
+    "timestamp": "12:48:55",
+    "level": "INFO",
+    "source": "MSP",
+    "message": "Status payload: 7D 00 00 00 01 00 00 00 00 00 00 00 00 00 00 00 00 04 00 00 00 00"
+  },
+  {
+    "timestamp": "12:48:55",
+    "level": "INFO",
+    "source": "MSP",
+    "message": "Feature config payload: 00 00 00 00"
+  },
+  {
+    "timestamp": "12:48:55",
+    "level": "INFO",
+    "source": "MSP",
+    "message": "Battery state payload: 00 00 00 00 00 00 00 00 00"
+  },
+  {
+    "timestamp": "12:48:55",
+    "level": "INFO",
+    "source": "MSP",
+    "message": "RC payload: DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05"
+  },
+  {
+    "timestamp": "12:48:55",
+    "level": "INFO",
+    "source": "MSP",
+    "message": "Analog payload: A8 00 00 00 00 00 00"
+  },
+  {
+    "timestamp": "12:48:57",
+    "level": "INFO",
+    "source": "WORKER",
+    "message": "Passthrough active on motor 0; ESC count=4"
+  },
+  {
+    "timestamp": "12:48:57",
+    "level": "INFO",
+    "source": "ESC",
+    "message": "ESC transition timing: switched to ESC serial on motor 0 in 16.9 ms (ESC count=4)"
+  },
+  {
+    "timestamp": "12:48:57",
+    "level": "INFO",
+    "source": "WORKER",
+    "message": "Auto-entered passthrough on motor 0 before reading settings"
+  },
+  {
+    "timestamp": "12:48:57",
+    "level": "INFO",
+    "source": "ESC",
+    "message": "ESC stabilization delay: waiting 1200 ms before reading settings"
+  },
+  {
+    "timestamp": "12:49:00",
+    "level": "WARNING",
+    "source": "4WAY",
+    "message": "4-way identity bootstrap failed before settings read: timeout waiting for 4-way response sync"
+  },
+  {
+    "timestamp": "12:49:02",
+    "level": "ERROR",
+    "source": "WORKER",
+    "message": "Settings read failed: timeout waiting for 4-way response sync"
+  },
+  {
+    "timestamp": "12:49:02",
+    "level": "INFO",
+    "source": "WORKER",
+    "message": "Transport lost during settings read: timeout waiting for 4-way response sync"
+  },
+  {
+    "timestamp": "12:49:15",
+    "level": "INFO",
+    "source": "MSP",
+    "message": "FC reported motor count: 4"
+  },
+  {
+    "timestamp": "12:49:15",
+    "level": "INFO",
+    "source": "WORKER",
+    "message": "Connected to /dev/ttyACM1 @ 115200 (MSP protocol)"
+  },
+  {
+    "timestamp": "12:49:15",
+    "level": "INFO",
+    "source": "MSP",
+    "message": "MSP API version: 0.1.48"
+  },
+  {
+    "timestamp": "12:49:15",
+    "level": "INFO",
+    "source": "MSP",
+    "message": "FC variant: BTFL"
+  },
+  {
+    "timestamp": "12:49:15",
+    "level": "INFO",
+    "source": "MSP",
+    "message": "FC version: 4.5.0"
+  },
+  {
+    "timestamp": "12:49:15",
+    "level": "INFO",
+    "source": "MSP",
+    "message": "Board info: P2FC"
+  },
+  {
+    "timestamp": "12:49:15",
+    "level": "INFO",
+    "source": "MSP",
+    "message": "Build info: Mar 21 202612:00:00"
+  },
+  {
+    "timestamp": "12:49:15",
+    "level": "INFO",
+    "source": "MSP",
+    "message": "UID: 5049434F0000000000000000"
+  },
+  {
+    "timestamp": "12:49:15",
+    "level": "INFO",
+    "source": "MSP",
+    "message": "Status payload: 7D 00 00 00 01 00 00 00 00 00 00 00 00 00 00 00 00 04 00 00 00 00"
+  },
+  {
+    "timestamp": "12:49:15",
+    "level": "INFO",
+    "source": "MSP",
+    "message": "Feature config payload: 00 00 00 00"
+  },
+  {
+    "timestamp": "12:49:15",
+    "level": "INFO",
+    "source": "MSP",
+    "message": "Battery state payload: 00 00 00 00 00 00 00 00 00"
+  },
+  {
+    "timestamp": "12:49:15",
+    "level": "INFO",
+    "source": "MSP",
+    "message": "RC payload: DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05"
+  },
+  {
+    "timestamp": "12:49:15",
+    "level": "INFO",
+    "source": "MSP",
+    "message": "Analog payload: A8 00 00 00 00 00 00"
+  },
+  {
+    "timestamp": "12:49:17",
+    "level": "INFO",
+    "source": "WORKER",
+    "message": "Passthrough active on motor 0; ESC count=4"
+  },
+  {
+    "timestamp": "12:49:17",
+    "level": "INFO",
+    "source": "ESC",
+    "message": "ESC transition timing: switched to ESC serial on motor 0 in 19.9 ms (ESC count=4)"
+  },
+  {
+    "timestamp": "12:49:17",
+    "level": "INFO",
+    "source": "WORKER",
+    "message": "Auto-entered passthrough on motor 0 before reading settings"
+  },
+  {
+    "timestamp": "12:49:17",
+    "level": "INFO",
+    "source": "ESC",
+    "message": "ESC stabilization delay: waiting 1200 ms before reading settings"
+  },
+  {
+    "timestamp": "12:49:20",
+    "level": "WARNING",
+    "source": "4WAY",
+    "message": "4-way identity bootstrap failed before settings read: timeout waiting for 4-way response sync"
+  },
+  {
+    "timestamp": "12:49:22",
+    "level": "ERROR",
+    "source": "WORKER",
+    "message": "Settings read failed: timeout waiting for 4-way response sync"
+  },
+  {
+    "timestamp": "12:49:22",
+    "level": "INFO",
+    "source": "WORKER",
+    "message": "Transport lost during settings read: timeout waiting for 4-way response sync"
+  },
+  {
+    "timestamp": "12:49:43",
+    "level": "INFO",
+    "source": "MSP",
+    "message": "FC reported motor count: 4"
+  },
+  {
+    "timestamp": "12:49:43",
+    "level": "INFO",
+    "source": "WORKER",
+    "message": "Connected to /dev/ttyACM1 @ 115200 (MSP protocol)"
+  },
+  {
+    "timestamp": "12:49:43",
+    "level": "INFO",
+    "source": "MSP",
+    "message": "MSP API version: 0.1.48"
+  },
+  {
+    "timestamp": "12:49:43",
+    "level": "INFO",
+    "source": "MSP",
+    "message": "FC variant: BTFL"
+  },
+  {
+    "timestamp": "12:49:43",
+    "level": "INFO",
+    "source": "MSP",
+    "message": "FC version: 4.5.0"
+  },
+  {
+    "timestamp": "12:49:43",
+    "level": "INFO",
+    "source": "MSP",
+    "message": "Board info: P2FC"
+  },
+  {
+    "timestamp": "12:49:43",
+    "level": "INFO",
+    "source": "MSP",
+    "message": "Build info: Mar 21 202612:00:00"
+  },
+  {
+    "timestamp": "12:49:43",
+    "level": "INFO",
+    "source": "MSP",
+    "message": "UID: 5049434F0000000000000000"
+  },
+  {
+    "timestamp": "12:49:43",
+    "level": "INFO",
+    "source": "MSP",
+    "message": "Status payload: 7D 00 00 00 01 00 00 00 00 00 00 00 00 00 00 00 00 04 00 00 00 00"
+  },
+  {
+    "timestamp": "12:49:43",
+    "level": "INFO",
+    "source": "MSP",
+    "message": "Feature config payload: 00 00 00 00"
+  },
+  {
+    "timestamp": "12:49:43",
+    "level": "INFO",
+    "source": "MSP",
+    "message": "Battery state payload: 00 00 00 00 00 00 00 00 00"
+  },
+  {
+    "timestamp": "12:49:43",
+    "level": "INFO",
+    "source": "MSP",
+    "message": "RC payload: DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05 DC 05"
+  },
+  {
+    "timestamp": "12:49:43",
+    "level": "INFO",
+    "source": "MSP",
+    "message": "Analog payload: A8 00 00 00 00 00 00"
+  },
+  {
+    "timestamp": "12:49:45",
+    "level": "INFO",
+    "source": "WORKER",
+    "message": "Passthrough active on motor 0; ESC count=4"
+  },
+  {
+    "timestamp": "12:49:45",
+    "level": "INFO",
+    "source": "ESC",
+    "message": "ESC transition timing: switched to ESC serial on motor 0 in 19.6 ms (ESC count=4)"
+  },
+  {
+    "timestamp": "12:49:45",
+    "level": "INFO",
+    "source": "WORKER",
+    "message": "Auto-entered passthrough on motor 0 before reading settings"
+  },
+  {
+    "timestamp": "12:49:45",
+    "level": "INFO",
+    "source": "ESC",
+    "message": "ESC stabilization delay: waiting 1200 ms before reading settings"
+  },
+  {
+    "timestamp": "12:49:48",
+    "level": "WARNING",
+    "source": "4WAY",
+    "message": "4-way identity bootstrap failed before settings read: timeout waiting for 4-way response sync"
+  },
+  {
+    "timestamp": "12:49:51",
+    "level": "ERROR",
+    "source": "WORKER",
+    "message": "Settings read failed: timeout waiting for 4-way response sync"
+  },
+  {
+    "timestamp": "12:49:51",
+    "level": "INFO",
+    "source": "WORKER",
+    "message": "Transport lost during settings read: timeout waiting for 4-way response sync"
+  }
+]

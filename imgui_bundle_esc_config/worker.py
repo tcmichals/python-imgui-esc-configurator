@@ -95,14 +95,18 @@ from .backend_models import (
     EventMspStats,
     EventOperationCancelled,
     EventPassthroughState,
+    EventMspIdentity,
     EventPortsUpdated,
     EventProgress,
     EventProtocolTrace,
     EventSettingsLoaded,
     EventSettingsWritten,
+    CommandReadAllSettings,
+    CommandWriteAllSettings,
 )
 from .firmware_catalog import FirmwareCatalogClient, FirmwareCatalogSnapshot, FirmwareRelease, describe_release_compatibility, load_firmware_file
 from .settings_decoder import DecodedSettings, decode_settings_payload
+from .mcu_descriptors import get_mcu_by_signature, get_default_mcu_for_interface_mode, compute_erase_page_number
 
 MSP_SET_PASSTHROUGH = 245
 MSP_SET_MOTOR = 214
@@ -197,6 +201,7 @@ class WorkerController:
         self._fcsp_handshake_ok = False
         self._fcsp_supported_ops_bitmap: bytes | None = None
         self._fcsp_supported_spaces_bitmap: bytes | None = None
+        self._fc_variant: str | None = None
 
     def _emit_msp_stats(self) -> None:
         elapsed = max(0.001, perf_counter() - self._msp_started_at)
@@ -298,7 +303,8 @@ class WorkerController:
 
         variant = safe_read_payload(MSP_FC_VARIANT, "read FC variant")
         if variant:
-            self._emit(EventLog("info", f"FC variant: {self._safe_ascii(variant)}", source="msp"))
+            self._fc_variant = self._safe_ascii(variant)
+            self._emit(EventLog("info", f"FC variant: {self._fc_variant}", source="msp"))
 
         fc_version = safe_read_payload(MSP_FC_VERSION, "read FC version")
         if len(fc_version) >= 3:
@@ -336,6 +342,20 @@ class WorkerController:
         analog = safe_read_payload(MSP_ANALOG, "read analog")
         if analog:
             self._emit(EventLog("info", f"Analog payload: {self._format_bytes(analog)}", source="msp"))
+
+        api_str = f"{api[0]}.{api[1]}.{api[2]}" if len(api) >= 3 else None
+        variant_str = self._fc_variant
+        version_str = f"{fc_version[0]}.{fc_version[1]}.{fc_version[2]}" if len(fc_version) >= 3 else None
+        board_name = self._safe_ascii(board[:8]) if len(board) >= 4 else self._format_bytes(board) if board else None
+
+        self._emit(
+            EventMspIdentity(
+                api_version=api_str,
+                fc_variant=variant_str,
+                fc_version=version_str,
+                board_name=board_name,
+            )
+        )
 
     def _trace_protocol(self, channel: str, message: str) -> None:
         self._emit(EventProtocolTrace(channel=channel, message=message))
@@ -909,6 +929,8 @@ class WorkerController:
 
     def _is_transport_fatal(self, exc: BaseException) -> bool:
         """Return True if an exception represents an unrecoverable serial/IO loss."""
+        if isinstance(exc, TimeoutError) or "timeout" in type(exc).__name__.lower():
+            return False
         exc_type_name = type(exc).__name__.lower()
         # serial.SerialException, OSError, BrokenPipeError etc.
         is_io_type = isinstance(exc, (OSError, EOFError)) or "serial" in exc_type_name or "port" in exc_type_name
@@ -1007,9 +1029,13 @@ class WorkerController:
             return
 
         transition_start = perf_counter()
+        if self._fc_variant == "BTFL":
+            passthrough_payload = bytes([0xFF, motor_index & 0xFF])
+        else:
+            passthrough_payload = bytes([0x00, motor_index & 0xFF])
         response = self._send_msp_logged(
             MSP_SET_PASSTHROUGH,
-            bytes([0x00, motor_index & 0xFF]),
+            passthrough_payload,
             expect_response=True,
             timeout=1.5,
             description=f"enter passthrough motor={motor_index}",
@@ -1122,9 +1148,13 @@ class WorkerController:
             self._emit(EventLog("info", f"ESC scan complete on motor {motor_index}: count={esc_count}"))
             return
 
+        if self._fc_variant == "BTFL":
+            passthrough_payload = bytes([0xFF, motor_index & 0xFF])
+        else:
+            passthrough_payload = bytes([0x00, motor_index & 0xFF])
         response = self._send_msp_logged(
             MSP_SET_PASSTHROUGH,
-            bytes([0x00, motor_index & 0xFF]),
+            passthrough_payload,
             expect_response=True,
             timeout=1.5,
             description=f"scan escs motor={motor_index}",
@@ -1302,6 +1332,46 @@ class WorkerController:
             )
         )
 
+    def _handle_read_all_settings(self, command: CommandReadAllSettings) -> None:
+        if not self._require_msp_client():
+            return
+        motor_count = int(command.motor_count) if command.motor_count is not None else self._motor_count
+        if motor_count <= 0:
+            self._emit(EventError(message=f"Cannot read all settings: invalid motor count {motor_count}"))
+            return
+        
+        self._emit(EventLog("info", f"Batch reading settings for {motor_count} ESC(s)..."))
+        for i in range(motor_count):
+            try:
+                self._handle_read_settings(CommandReadSettings(
+                    length=command.length,
+                    address=command.address,
+                    motor_index=i
+                ))
+            except Exception as exc:
+                self._emit(EventLog("error", f"Failed to read settings for ESC {i+1}: {exc}"))
+
+    def _handle_write_all_settings(self, command: CommandWriteAllSettings) -> None:
+        if not self._require_msp_client():
+            return
+        
+        if not command.payloads:
+            self._emit(EventLog("info", "No settings to write in batch operation."))
+            return
+            
+        self._emit(EventLog("info", f"Batch writing settings for {len(command.payloads)} ESC(s)..."))
+        for motor_index, payload in command.payloads.items():
+            try:
+                old_payload = command.old_payloads.get(motor_index, b"")
+                self._handle_write_settings(CommandWriteSettings(
+                    data=payload,
+                    address=command.address,
+                    verify_readback=command.verify_readback,
+                    old_data=old_payload
+                ))
+            except Exception as exc:
+                self._emit(EventLog("error", f"Failed to write settings for ESC {motor_index+1}: {exc}"))
+
     def _handle_read_settings(self, command: CommandReadSettings) -> None:
         if not self._require_msp_client():
             return
@@ -1348,7 +1418,9 @@ class WorkerController:
             return
 
         auto_entered = False
-        if not self._passthrough_active:
+        if not self._passthrough_active or self._passthrough_motor != motor_index:
+            if self._passthrough_active:
+                self._handle_exit_passthrough()
             self._handle_enter_passthrough(CommandEnterPassthrough(motor_index=motor_index))
             auto_entered = True
 
@@ -1374,17 +1446,100 @@ class WorkerController:
             except Exception as exc:
                 self._emit(EventLog("warning", f"4-way identity bootstrap failed before settings read: {exc}", source="4way"))
 
+        # Initialize flash/C2 connection to target ESC before reading settings
+        self._emit(EventLog("info", f"Initializing 4-way connection to ESC {self._passthrough_motor}...", source="4way"))
+        init_response = self._send_fourway_logged(
+            FOURWAY_CMDS["init_flash"],
+            address=0,
+            params=bytes([self._passthrough_motor & 0x03]),
+            description="device init flash",
+        )
+        self._ensure_fourway_ok(init_response, "device init flash")
+
+        # Determine whether to use read_eeprom (0x3D) or read (0x3A)
+        # and resolve MCU-specific EEPROM address from init_flash signature.
+        cmd = FOURWAY_CMDS["read_eeprom"]
+        interface_mode = 0
+        mcu_descriptor = None
+        if init_response.params and len(init_response.params) >= 4:
+            interface_mode = init_response.params[3]
+            # Extract MCU signature from init_flash response bytes 0-1
+            mcu_signature = int.from_bytes(init_response.params[0:2], "big")
+            mcu_descriptor = get_mcu_by_signature(mcu_signature)
+            if mcu_descriptor is None:
+                mcu_descriptor = get_default_mcu_for_interface_mode(interface_mode)
+                if mcu_descriptor:
+                    self._emit(
+                        EventLog(
+                            "info",
+                            f"Unknown MCU signature 0x{mcu_signature:04X}, using default for mode {interface_mode}: {mcu_descriptor.name}",
+                            source="4way",
+                        )
+                    )
+            else:
+                self._emit(
+                    EventLog(
+                        "info",
+                        f"MCU identified: {mcu_descriptor.name} (sig 0x{mcu_signature:04X}, eeprom @ 0x{mcu_descriptor.eeprom_offset:04X})",
+                        source="4way",
+                    )
+                )
+
+            if interface_mode in (1, 4):  # 1 = SiLabs, 4 = ARM
+                cmd = FOURWAY_CMDS["read"]
+                self._emit(
+                    EventLog(
+                        "info",
+                        f"Silabs/ARM bootloader detected (mode {interface_mode}). Using read (0x3A) for flash-mapped settings.",
+                        source="4way",
+                    )
+                )
+
+        # Override address from MCU descriptor if available and user address is 0 (auto-detect)
+        effective_address = address
+        if mcu_descriptor and address == 0:
+            effective_address = mcu_descriptor.eeprom_offset
+            self._emit(
+                EventLog(
+                    "info",
+                    f"Auto-detected settings address: 0x{effective_address:04X} (from MCU descriptor)",
+                    source="4way",
+                )
+            )
+
+        # Lock byte diagnostic check for Silabs EFM8 MCUs
+        if interface_mode == 1 and mcu_descriptor and mcu_descriptor.lockbyte_address is not None:
+            try:
+                lock_resp = self._send_fourway_logged(
+                    FOURWAY_CMDS["read"],
+                    address=mcu_descriptor.lockbyte_address,
+                    params=bytes([1]),
+                    description="lock byte check",
+                )
+                lock_data = bytes(getattr(lock_resp, "params", b""))
+                if lock_data and lock_data[0] != 0xFF:
+                    self._emit(
+                        EventLog(
+                            "warning",
+                            f"ESC code protection is LOCKED (lock byte = 0x{lock_data[0]:02X} at 0x{mcu_descriptor.lockbyte_address:04X}). "
+                            "Flash operations may be restricted.",
+                            source="4way",
+                        )
+                    )
+            except Exception as exc:
+                self._emit(EventLog("debug", f"Lock byte check failed (non-critical): {exc}", source="4way"))
+
         response = self._send_fourway_logged(
-            FOURWAY_CMDS["read_eeprom"],
-            address=address,
+            cmd,
+            address=effective_address,
             params=bytes([length & 0xFF]),
             description="read settings",
         )
         params = bytes(getattr(response, "params", b""))
-        self._last_decoded_settings = decode_settings_payload(params, start_address=address)
+        self._last_decoded_settings = decode_settings_payload(params, start_address=effective_address)
         self._last_settings_motor = self._passthrough_motor
-        self._emit(EventSettingsLoaded(data=params, address=address, motor_index=self._passthrough_motor))
-        self._emit(EventLog("info", f"Read settings: {len(params)} byte(s) @ 0x{address:04X}"))
+        self._emit(EventSettingsLoaded(data=params, address=effective_address, motor_index=self._passthrough_motor))
+        self._emit(EventLog("info", f"Read settings: {len(params)} byte(s) @ 0x{effective_address:04X}"))
 
     def _handle_write_settings(self, command: CommandWriteSettings) -> None:
         if not self._require_msp_client():
@@ -1470,20 +1625,109 @@ class WorkerController:
             self._emit(EventLog("error", message))
             return
 
-        self._send_fourway_logged(
-            FOURWAY_CMDS["write_eeprom"],
-            address=address,
-            params=data,
-            description="write settings",
+        # Initialize flash/C2 connection to target ESC before writing settings
+        self._emit(EventLog("info", f"Initializing 4-way connection to ESC {self._passthrough_motor}...", source="4way"))
+        init_response = self._send_fourway_logged(
+            FOURWAY_CMDS["init_flash"],
+            address=0,
+            params=bytes([self._passthrough_motor & 0x03]),
+            description="device init flash",
         )
+        self._ensure_fourway_ok(init_response, "device init flash")
+
+        # Determine whether to use write_eeprom (0x3E) or write (0x3B)
+        # and resolve MCU-specific parameters from init_flash signature.
+        cmd = FOURWAY_CMDS["write_eeprom"]
+        interface_mode = 0
+        mcu_descriptor = None
+        if init_response.params and len(init_response.params) >= 4:
+            interface_mode = init_response.params[3]
+            mcu_signature = int.from_bytes(init_response.params[0:2], "big")
+            mcu_descriptor = get_mcu_by_signature(mcu_signature)
+            if mcu_descriptor is None:
+                mcu_descriptor = get_default_mcu_for_interface_mode(interface_mode)
+
+            if interface_mode in (1, 4):  # 1 = SiLabs, 4 = ARM
+                cmd = FOURWAY_CMDS["write"]
+                self._emit(
+                    EventLog(
+                        "info",
+                        f"Silabs/ARM bootloader detected (mode {interface_mode}). Using write (0x3B) for flash-mapped settings.",
+                        source="4way",
+                    )
+                )
+
+        # Override address from MCU descriptor if available and user address is 0 (auto-detect)
+        effective_address = address
+        if mcu_descriptor and address == 0:
+            effective_address = mcu_descriptor.eeprom_offset
+            self._emit(
+                EventLog(
+                    "info",
+                    f"Auto-detected settings address: 0x{effective_address:04X} (from MCU descriptor)",
+                    source="4way",
+                )
+            )
+
+        # Silabs ESCs require a page erase before writing to flash-mapped settings.
+        # This matches the JS reference: FourWay.js writeSettings() line 731.
+        # ARM ESCs do NOT require the erase step.
+        if interface_mode == 1 and mcu_descriptor:
+            erase_page = compute_erase_page_number(mcu_descriptor.eeprom_offset, mcu_descriptor.page_size)
+            self._emit(
+                EventLog(
+                    "info",
+                    f"Erasing settings page {erase_page} before write (Silabs flash requirement).",
+                    source="4way",
+                )
+            )
+            erase_response = self._send_fourway_logged(
+                FOURWAY_CMDS["page_erase"],
+                address=erase_page,
+                params=bytes([1]),
+                description="erase settings page",
+            )
+            self._ensure_fourway_ok(erase_response, "erase settings page")
+
+        if interface_mode == 2 and command.old_data and len(command.old_data) >= len(data):
+            # Atmel: write only changed bytes using differential spans
+            self._emit(EventLog("info", "Atmel ESC detected. Using differential span writes.", source="4way"))
+            pos = 0
+            while pos < len(data):
+                offset = pos
+                while pos < len(data) and data[pos] != command.old_data[pos]:
+                    pos += 1
+                
+                if offset == pos:
+                    pos += 1
+                    continue
+                
+                span_data = data[offset:pos]
+                span_address = effective_address + offset
+                self._send_fourway_logged(
+                    cmd,
+                    address=span_address,
+                    params=span_data,
+                    description=f"write settings span [+{offset}..+{pos-1}]",
+                )
+        else:
+            self._send_fourway_logged(
+                cmd,
+                address=effective_address,
+                params=data,
+                description="write settings",
+            )
 
         verified = False
         readback = b""
         if command.verify_readback:
+            read_cmd = FOURWAY_CMDS["read_eeprom"]
+            if interface_mode in (1, 4):  # 1 = SiLabs, 4 = ARM
+                read_cmd = FOURWAY_CMDS["read"]
             read_len_param = 0 if len(data) == 256 else len(data)
             readback_response = self._send_fourway_logged(
-                FOURWAY_CMDS["read_eeprom"],
-                address=address,
+                read_cmd,
+                address=effective_address,
                 params=bytes([read_len_param & 0xFF]),
                 description="verify settings readback",
             )
@@ -1491,22 +1735,22 @@ class WorkerController:
             verified = readback == data
             if not verified:
                 message = (
-                    f"Settings verification failed @ 0x{address:04X}: "
+                    f"Settings verification failed @ 0x{effective_address:04X}: "
                     f"wrote {len(data)} byte(s), read back {len(readback)} byte(s)"
                 )
                 self._emit(EventError(message=message))
                 self._emit(EventLog("error", message))
                 return
 
-        self._emit(EventSettingsWritten(address=address, size=len(data), verified=verified))
+        self._emit(EventSettingsWritten(address=effective_address, size=len(data), verified=verified))
         if readback:
-            self._last_decoded_settings = decode_settings_payload(readback, start_address=address)
+            self._last_decoded_settings = decode_settings_payload(readback, start_address=effective_address)
             self._last_settings_motor = self._passthrough_motor
-            self._emit(EventSettingsLoaded(data=readback, address=address, motor_index=self._passthrough_motor))
+            self._emit(EventSettingsLoaded(data=readback, address=effective_address, motor_index=self._passthrough_motor))
         self._emit(
             EventLog(
                 "info",
-                f"Wrote settings: {len(data)} byte(s) @ 0x{address:04X}"
+                f"Wrote settings: {len(data)} byte(s) @ 0x{effective_address:04X}"
                 + (" (verified)" if verified else ""),
             )
         )
@@ -2022,6 +2266,28 @@ class WorkerController:
                     self._emit(EventLog("error", msg))
                     if self._is_transport_fatal(exc):
                         self._disconnect_transport(f"Transport lost during 4-way identity read: {exc}")
+                continue
+
+            if isinstance(command, CommandReadAllSettings):
+                try:
+                    self._handle_read_all_settings(command)
+                except Exception as exc:
+                    msg = f"Batch settings read failed: {exc}"
+                    self._emit(EventError(message=msg))
+                    self._emit(EventLog("error", msg))
+                    if self._is_transport_fatal(exc):
+                        self._disconnect_transport(f"Transport lost during batch settings read: {exc}")
+                continue
+
+            if isinstance(command, CommandWriteAllSettings):
+                try:
+                    self._handle_write_all_settings(command)
+                except Exception as exc:
+                    msg = f"Batch settings write failed: {exc}"
+                    self._emit(EventError(message=msg))
+                    self._emit(EventLog("error", msg))
+                    if self._is_transport_fatal(exc):
+                        self._disconnect_transport(f"Transport lost during batch settings write: {exc}")
                 continue
 
             if isinstance(command, CommandReadSettings):

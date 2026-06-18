@@ -173,7 +173,6 @@ verified_on: 2026-03-22
 This first pass applies the standard to the most important repo entry documents:
 
 - `README.md`
-- `PROMPTS.md`
 - `docs/README.md`
 - `python/AI_PROMPT_GUIDE.md`
 - `python/imgui_bundle_esc_config/DESIGN_REQUIREMENTS.md`

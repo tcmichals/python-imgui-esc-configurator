@@ -82,9 +82,9 @@ def test_app_state_applies_structured_settings_decode() -> None:
 
     state.apply_event(EventSettingsLoaded(data=bytes(payload), address=0))
 
-    assert state.decoded_settings is not None
-    assert state.decoded_settings.family == "BLHeli_S"
-    assert state.settings_size == 0x70
+    assert 0 in state.all_decoded_settings
+    assert state.all_decoded_settings[0].family == "BLHeli_S"
+    assert state.settings_rw_length == 128
     assert state.settings_hex_preview
 
 
@@ -130,7 +130,7 @@ def test_app_state_tracks_dirty_settings_edits() -> None:
     state.apply_event(EventSettingsLoaded(data=bytes(payload), address=0))
 
     assert state.settings_dirty() is False
-    state.settings_edit_values["MOTOR_DIRECTION"] = 2
+    state.all_settings_edit_values.setdefault(0, {})["MOTOR_DIRECTION"] = 2
     assert state.settings_dirty() is True
 
 
@@ -308,3 +308,28 @@ def test_settings_fields_grouped_by_attribute() -> None:
     # BLHeli_S fields must span at least safety, beacon, and general groups
     assert "safety" in groups
     assert "beacon" in groups
+
+
+def test_decode_with_non_zero_start_address() -> None:
+    """Verify that using a non-zero start_address (like 0x1A00) correctly
+    parses relative offsets without underflowing the byte array."""
+    payload = bytearray([0x00] * 0x70)
+    payload[0x02] = 33
+    payload[0x0B] = 2  # Reversed
+    _put_ascii(payload, 0x60, 16, "BLHeli_S")
+
+    # Decode with a non-zero start address representing MCU EEPROM location
+    start_addr = 0x1A00
+    decoded = decode_settings_payload(bytes(payload), start_address=start_addr)
+
+    assert decoded.start_address == start_addr
+    assert decoded.family == "BLHeli_S"
+
+    by_name = {f.name: f for f in decoded.fields}
+    assert "MOTOR_DIRECTION" in by_name
+    assert by_name["MOTOR_DIRECTION"].display_value == "Reversed"
+
+    # Verify building the payload also works safely with non-zero start_address
+    edits = {"MOTOR_DIRECTION": 1}  # Change to Normal
+    built = build_settings_payload(decoded, edits)
+    assert built[0x0B] == 1

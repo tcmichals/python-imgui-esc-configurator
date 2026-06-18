@@ -70,6 +70,16 @@ from imgui_bundle_esc_config.worker import (
     WorkerController,
 )
 
+# Wrap WorkerController.enqueue to automatically clear the test event buffer
+# so that stale events from previous commands do not satisfy future wait_for_event checks.
+_original_enqueue = WorkerController.enqueue
+def _test_enqueue(self, command: object) -> None:
+    if hasattr(self, "_test_event_buffer"):
+        self._test_event_buffer.clear()
+    _original_enqueue(self, command)
+WorkerController.enqueue = _test_enqueue
+
+
 
 MOTOR_PAYLOAD_4 = b"\x00\x00\x00\x00\x00\x00\x00\x00"
 MOTOR_PAYLOAD_16 = b"\x00" * 32
@@ -265,34 +275,65 @@ class FakeFirmwareCatalogClient:
 
 
 def wait_for_event(controller: WorkerController, event_type: type, timeout: float = 1.0):
+    if not hasattr(controller, "_test_event_buffer"):
+        controller._test_event_buffer = []
+    
     deadline = time.time() + timeout
     while time.time() < deadline:
-        for event in controller.poll_events():
+        for i, event in enumerate(controller._test_event_buffer):
             if isinstance(event, event_type):
-                return event
+                return controller._test_event_buffer.pop(i)
+        
+        new_events = controller.poll_events()
+        if new_events:
+            controller._test_event_buffer.extend(new_events)
+            continue
+            
         time.sleep(0.01)
     raise AssertionError(f"Timed out waiting for {event_type.__name__}")
 
 
 def drain_events(controller: WorkerController, event_type: type, timeout: float = 0.3) -> list:
     """Collect all events of a given type that arrive within timeout."""
+    if not hasattr(controller, "_test_event_buffer"):
+        controller._test_event_buffer = []
+    
     deadline = time.time() + timeout
     collected = []
     while time.time() < deadline:
-        for event in controller.poll_events():
+        new_events = controller.poll_events()
+        if new_events:
+            controller._test_event_buffer.extend(new_events)
+            
+        i = 0
+        while i < len(controller._test_event_buffer):
+            event = controller._test_event_buffer[i]
             if isinstance(event, event_type):
                 collected.append(event)
+                controller._test_event_buffer.pop(i)
+            else:
+                i += 1
         time.sleep(0.01)
     return collected
 
 def wait_for_passthrough_state(controller: WorkerController, *, active: bool, timeout: float = 1.0) -> EventPassthroughState:
+    if not hasattr(controller, "_test_event_buffer"):
+        controller._test_event_buffer = []
+    
     deadline = time.time() + timeout
     while time.time() < deadline:
-        for event in controller.poll_events():
+        for i, event in enumerate(controller._test_event_buffer):
             if isinstance(event, EventPassthroughState) and event.active is active:
-                return event
+                return controller._test_event_buffer.pop(i)
+                
+        new_events = controller.poll_events()
+        if new_events:
+            controller._test_event_buffer.extend(new_events)
+            continue
+            
         time.sleep(0.01)
     raise AssertionError(f"Timed out waiting for EventPassthroughState(active={active})")
+
 
 
 def test_worker_refreshes_ports() -> None:
@@ -1481,6 +1522,12 @@ def test_worker_read_settings() -> None:
         assert settings.data[0] == 0
         assert settings.data[-1] == 15
 
+        # Verify init_flash is called first to select the ESC
+        init_cmd, init_addr, init_params = fourway.send_calls[-2]
+        assert init_cmd == FOURWAY_CMDS["init_flash"]
+        assert init_addr == 0
+        assert init_params == bytes([0])
+
         cmd, addr, params = fourway.send_calls[-1]
         assert cmd == FOURWAY_CMDS["read_eeprom"]
         assert addr == 0
@@ -1520,6 +1567,54 @@ def test_worker_read_settings_auto_enters_passthrough_and_bootstraps_identity() 
         assert any(call == "get_name" for call in fourway.calls)
         assert any(call[0] == FOURWAY_CMDS["get_if_version"] for call in fourway.send_calls)
         assert any(call[0] == FOURWAY_CMDS["read_eeprom"] for call in fourway.send_calls)
+    finally:
+        controller.stop()
+
+
+def test_worker_read_settings_switches_passthrough_motor() -> None:
+    msp = FakeMspClient(responses=[MOTOR_PAYLOAD_4, b"\x02", b"\x00", b"\x02"])
+    fourway = FakeFourWayClient()
+
+    def make_msp(_transport: FakeTransport) -> FakeMspClient:
+        return msp
+
+    def make_fourway(_transport: FakeTransport) -> FakeFourWayClient:
+        return fourway
+
+    controller = WorkerController(
+        port_enumerator=lambda: [],
+        transport_factory=lambda p, b, t: FakeTransport(p, b, t),
+        msp_client_factory=make_msp,
+        fourway_client_factory=make_fourway,
+    )
+
+    controller.start()
+    try:
+        controller.enqueue(CommandConnect(port="/dev/ttyUSB0"))
+        _ = wait_for_event(controller, EventConnected)
+
+        # Enter passthrough on motor 0
+        controller.enqueue(CommandEnterPassthrough(motor_index=0))
+        pt1 = wait_for_event(controller, EventPassthroughState)
+        assert pt1.active is True
+        assert pt1.motor_index == 0
+
+        # Read settings for motor 1 (requires switching)
+        controller.enqueue(CommandReadSettings(length=16, address=0, motor_index=1))
+
+        # First we exit passthrough
+        pt_exit = wait_for_event(controller, EventPassthroughState)
+        assert pt_exit.active is False
+
+        # Then we enter passthrough for motor 1
+        pt_enter = wait_for_event(controller, EventPassthroughState)
+        assert pt_enter.active is True
+        assert pt_enter.motor_index == 1
+
+        # Finally settings are loaded
+        settings = wait_for_event(controller, EventSettingsLoaded)
+        assert settings.address == 0
+        assert len(settings.data) == 16
     finally:
         controller.stop()
 
@@ -1612,6 +1707,12 @@ def test_worker_write_settings_with_readback_verification() -> None:
         assert write_event.address == 0x0010
         assert write_event.size == len(payload)
         assert write_event.verified is True
+
+        # Verify init_flash is called first to select the ESC
+        init_call = fourway.send_calls[-3]
+        assert init_call[0] == FOURWAY_CMDS["init_flash"]
+        assert init_call[1] == 0
+        assert init_call[2] == bytes([0])
 
         write_call = fourway.send_calls[-2]
         assert write_call[0] == FOURWAY_CMDS["write_eeprom"]
@@ -2531,6 +2632,7 @@ def test_worker_is_transport_fatal_recognises_ioerror() -> None:
     assert controller._is_transport_fatal(OSError("i/o error")) is True
     assert controller._is_transport_fatal(ValueError("bad value")) is False
     assert controller._is_transport_fatal(RuntimeError("timeout")) is False
+    assert controller._is_transport_fatal(TimeoutError("timeout waiting for 4-way response sync")) is False
 
 
 # ---------------------------------------------------------------------------
@@ -2807,3 +2909,133 @@ def test_worker_fcsp_read_block_emits_error_when_space_not_advertised() -> None:
         assert "0x11" in error.message or "not available" in error.message
     finally:
         controller.stop()
+
+
+def test_worker_enter_passthrough_betaflight() -> None:
+    class BetaflightMspClient(FakeMspClient):
+        def send_msp(self, command: int, payload: bytes, **kwargs):
+            self.calls.append((command, payload))
+            if command == 104:  # MSP_MOTOR
+                return _FakeMspResponse(MOTOR_PAYLOAD_4)
+            elif command == 2:  # MSP_FC_VARIANT
+                return _FakeMspResponse(b"BTFL")
+            elif command == 245:  # MSP_SET_PASSTHROUGH
+                return _FakeMspResponse(b"\x01")
+            return _FakeMspResponse(b"\x00")
+
+    msp = BetaflightMspClient()
+
+    def make_msp(_transport: FakeTransport) -> FakeMspClient:
+        return msp
+
+    controller = WorkerController(
+        port_enumerator=lambda: [],
+        transport_factory=lambda p, b, t: FakeTransport(p, b, t),
+        msp_client_factory=make_msp,
+        msp_probe_on_connect=True,
+    )
+
+    controller.start()
+    try:
+        controller.enqueue(CommandConnect(port="/dev/ttyUSB0"))
+        _ = wait_for_event(controller, EventConnected)
+        
+        # Drain all event logs from the connect/probe
+        drain_events(controller, EventLog, timeout=0.5)
+
+        controller.enqueue(CommandEnterPassthrough(motor_index=2))
+        pt = wait_for_event(controller, EventPassthroughState)
+        assert pt.active is True
+        assert pt.motor_index == 2
+        assert pt.esc_count == 1
+
+        passthrough_calls = [(cmd, payload) for cmd, payload in msp.calls if cmd == 245]
+        assert len(passthrough_calls) >= 1
+        # Should send 0xFF (MSP_PASSTHROUGH_ESC_4WAY) instead of 0x00 for Betaflight FC
+        assert passthrough_calls[0][1] == bytes([0xFF, 0x02])
+    finally:
+        controller.stop()
+
+
+def test_worker_read_write_settings_silabs_dynamic() -> None:
+    # 0x01 as 4th byte confirms SiLabs bootloader mode (imSIL_BLB)
+    silabs_init_params = b"\x07\xe8\x63\x01"
+    
+    class FakeFourWayClientSilabs(FakeFourWayClient):
+        def send(self, command: int, *args, **kwargs):
+            if command == FOURWAY_CMDS["init_flash"]:
+                address = int(kwargs.get("address", 0))
+                params = bytes(kwargs.get("params", b""))
+                self.send_calls.append((command, address, params))
+                self.calls.append(f"send:{command}")
+                return _FakeFourWayResponse(silabs_init_params)
+            return super().send(command, *args, **kwargs)
+
+    class FakeMspClientDynamic(FakeMspClient):
+        def send_msp(self, command: int, payload: bytes, **kwargs):
+            self.calls.append((command, payload))
+            if command == 104:  # MSP_MOTOR
+                return _FakeMspResponse(MOTOR_PAYLOAD_4)
+            if command == 2:    # MSP_FC_VARIANT
+                return _FakeMspResponse(b"BTFL")
+            if command == 245:  # MSP_SET_PASSTHROUGH
+                return _FakeMspResponse(b"\x04")  # 4 ESCs
+            return _FakeMspResponse(b"\x00")
+
+    msp = FakeMspClientDynamic()
+    fourway = FakeFourWayClientSilabs()
+
+    def make_msp(_transport: FakeTransport) -> FakeMspClientDynamic:
+        return msp
+
+    def make_fourway(_transport: FakeTransport) -> FakeFourWayClientSilabs:
+        return fourway
+
+    controller = WorkerController(
+        port_enumerator=lambda: [],
+        transport_factory=lambda p, b, t: FakeTransport(p, b, t),
+        msp_client_factory=make_msp,
+        fourway_client_factory=make_fourway,
+        msp_probe_on_connect=True,
+    )
+
+    controller.start()
+    try:
+        controller.enqueue(CommandConnect(port="/dev/ttyUSB0"))
+        _ = wait_for_event(controller, EventConnected)
+        drain_events(controller, EventLog, timeout=0.5)
+
+        # 1. Verify Settings Read uses 'read' (0x3A) instead of 'read_eeprom' (0x3D)
+        controller.enqueue(CommandReadSettings(length=16, address=0x7C00, motor_index=0))
+        settings_loaded = wait_for_event(controller, EventSettingsLoaded)
+        assert settings_loaded.address == 0x7C00
+        assert len(settings_loaded.data) == 16
+
+        # Check send calls for the read operation
+        # send_calls should contain init_flash followed by read (not read_eeprom)
+        read_cmd, read_addr, read_params = fourway.send_calls[-1]
+        assert read_cmd == FOURWAY_CMDS["read"]
+        assert read_addr == 0x7C00
+        assert read_params == bytes([16])
+
+        # 2. Verify Settings Write uses 'write' (0x3B) and verify readback uses 'read' (0x3A)
+        write_data = bytes([5] * 16)
+        controller.enqueue(CommandWriteSettings(address=0x7C00, data=write_data, verify_readback=True))
+        written_event = wait_for_event(controller, EventSettingsWritten)
+        assert written_event.address == 0x7C00
+        assert written_event.verified is True
+
+        # Last call should be verify read (0x3A)
+        v_cmd, v_addr, v_params = fourway.send_calls[-1]
+        assert v_cmd == FOURWAY_CMDS["read"]
+        assert v_addr == 0x7C00
+        assert v_params == bytes([16])
+
+        # Second to last call should be write (0x3B)
+        w_cmd, w_addr, w_params = fourway.send_calls[-2]
+        assert w_cmd == FOURWAY_CMDS["write"]
+        assert w_addr == 0x7C00
+        assert w_params == write_data
+    finally:
+        controller.stop()
+

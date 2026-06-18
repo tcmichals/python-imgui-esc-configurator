@@ -14,7 +14,6 @@ This project should not be treated as:
 See also:
 
 - `DESIGN_REQUIREMENTS.md` — full replacement scope, architecture, detailed feature requirements, and function list.
-- `PROMPT.md` — copy-paste prompt templates for implementation/debugging tasks in this folder.
 - `WEBAPP_FEATURE_CACHE.md` — cached map of web esc-configurator module ownership, timeout behavior, and protocol framing.
 	It now also includes EEPROM/layout findings and structured-settings parsing notes gathered from the web reference source.
 

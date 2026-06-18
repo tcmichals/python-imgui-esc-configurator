@@ -11,11 +11,9 @@ subsystem: imgui-esc-config
 purpose: Define the product scope, architecture, feature requirements, and implementation constraints for the Python ImGui ESC configurator replacement.
 related_docs:
   - ../../README.md
-  - ../../PROMPTS.md
   - ../../docs/DOC_METADATA_STANDARD.md
   - ../../docs/BLHELI_PASSTHROUGH.md
   - ../../docs/MSP_MESSAGE_FLOW.md
-  - PROMPT.md
   - WEBAPP_FEATURE_CACHE.md
 verified_on: 2026-03-22
 ---
@@ -198,39 +196,286 @@ These priorities describe the preferred execution order, but they do **not** red
 
 ## High-level architecture
 
-The desktop app should use a **two-thread design**.
+The desktop application operates on a **two-thread design** with a strict separation of concerns:
+
+```mermaid
+sequenceDiagram
+    participant UI as UI Thread (ImGui / app.py)
+    participant CmdQ as Command Queue (Asyncio Loop)
+    participant Worker as Worker Thread (worker.py)
+    participant EvQ as Event Queue (queue.Queue)
+    participant Dev as Flight Controller / ESC
+
+    UI->>CmdQ: loop.call_soon_threadsafe(Command)
+    CmdQ->>Worker: Dequeue Command
+    Worker->>Dev: Execute I/O (MSP / 4-Way / FCSP)
+    Dev-->>Worker: Protocol Response
+    Worker->>EvQ: Put Event (Success / Progress / Error)
+    UI->>EvQ: Poll queue & apply to AppState
+    UI->>UI: Render Frame with new state
+```
 
 ### Thread 1: ImGui/UI thread
-
-Responsibilities:
-
-- render windows and widgets
-- process user input
-- manage local view state
-- enqueue work requests
-- consume worker events and update visible state
-
-Important rule:
-
-- the UI thread is the **only** thread allowed to touch ImGui APIs
+* **Core Files**: `app.py`, `ui_main.py`, `app_state.py`
+* **Responsibilities**:
+  - Render windows and widgets via Dear ImGui
+  - Process user input and manage local view state
+  - Enqueue command requests safely into the worker's command loop
+  - Consume worker events and update visible state in `AppState`
+* **Constraint**: The UI thread **never** accesses the serial port directly or blocks on network/file calls. It is the **only** thread allowed to make ImGui API calls.
 
 ### Thread 2: command/protocol worker thread
-
-Responsibilities:
-
-- own the serial port / transport session
-- execute MSP requests
-- execute 4-way commands
-- manage timeouts, retries, and cancellation
-- stream progress and result events back to the UI
-
-Important rule:
-
-- the worker thread is the **only** thread allowed to access the live serial transport
-- the worker/backend layer should remain usable outside the ImGui runtime (tests, CLI tools, and alternate frontends)
+* **Core File**: `worker.py`
+* **Responsibilities**:
+  - Own the serial port / transport session
+  - Execute MSP requests, FCSP streams, and 4-way commands
+  - Manage timeouts, retries, and transaction cancellation
+  - Stream progress, data, logs, and result events back to the UI thread via `Event` queues
+* **Constraint**: The worker thread **never** calls ImGui APIs directly. It communicates results entirely through events. The worker/backend layer remains usable outside the ImGui runtime (e.g. for pytest modules, command-line tools, or alternate frontends).
 
 ### Inter-thread communication
+Use message passing rather than ad-hoc shared mutable state:
+* **Command queue (UI → worker)**: UI actions trigger commands (e.g., `CommandReadSettings`).
+  - **Requirement**: Use `loop.call_soon_threadsafe` when submitting commands from the ImGui thread to the `asyncio` worker loop. This ensures that the command queue remains purely internal to the async thread, avoiding shared-memory concurrency bugs.
+* **Event queue (worker → UI)**: The worker publishes event objects (e.g., `EventSettingsLoaded`) into a thread-safe `queue.Queue`. On every ImGui frame, the UI thread drains this queue and updates `AppState`.
+* **Optional**: A read-only snapshot/status object guarded by a lock if needed for convenience.
 
+### Core Module Index
+| File | Subsystem | Responsibility |
+| :--- | :--- | :--- |
+| [`app.py`](app.py) | Application | Application entry point. Initializes ImGui, starts/stops the background worker thread, handles window configuration, and saves user preferences. |
+| [`app_state.py`](app_state.py) | UI State | Holds the single source of truth for the UI. Processes incoming worker events and updates bindings for widgets (e.g., connection status, settings, logs). |
+| [`worker.py`](worker.py) | Protocol Engine | The background worker loop. Owns the serial port, manages state transitions (MSP <-> Passthrough), parses command arguments, and manages flashing pipelines. |
+| [`ui_main.py`](ui_main.py) | User Interface | ImGui immediate-mode rendering logic. Contains layout code for all panels: connection, motor control, settings editor, flashing, and protocol tracing. |
+| [`settings_decoder.py`](settings_decoder.py) | Data Parsing | Decodes raw binary EEPROM blocks into structured, editable fields (with descriptors for enums, range constraints, and visibility rules) and re-encodes them for writing. |
+| [`firmware_catalog.py`](firmware_catalog.py) | Firmware Manager | Fetches remote releases from GitHub (Bluejay) or static listings (BLHeli_S), caches files locally, parses layout targets, and validates compatibility. |
+| [`backend_models.py`](backend_models.py) | Data Models | Defines the dataclasses for all command (UI -> Worker) and event (Worker -> UI) messages. |
+| [`persistence.py`](persistence.py) | Persistence | Saves and restores user settings (e.g., last serial port, baudrate, firmware caching directories) to `~/.config/pico-msp-bridge/prefs.json`. |
+| [`diagnostics_export.py`](diagnostics_export.py) | Debugging | Bundles UI logs, protocol traces, system metadata, and preferences into a standardized zip package for bug reports. |
+| [`runtime_logging.py`](runtime_logging.py) | Logging | Configures disk file logging mirroring the in-app logs so debug information is preserved across crashes. |
+| [`headless_cli.py`](headless_cli.py) | Interface | A non-GUI terminal application interface demonstrating backend/worker reusability for shell-based scripting and automation. |
+
+### Main Application Workflows
+
+#### ESC Settings Discovery Flow
+1. **Initiate Scan**: The user clicks `Read Settings`.
+2. **Passthrough Check**: If passthrough is not active, the worker sends `MSP_SET_PASSTHROUGH` for the selected motor.
+3. **4-Way Sync**: The worker sends `0x2F` sync frames to open communication with the ESC.
+4. **Read EEPROM**: The worker reads the raw configuration memory block (usually 128 bytes) using 4-way read commands.
+5. **Decode Settings**: `settings_decoder.py` parses raw bytes into typed values (e.g., Startup Power, Demag Compensation, Beacon Delay).
+6. **Populate Editor**: UI receives `EventSettingsLoaded` and populates state variables, unlocking the editing panel.
+
+#### Settings Write & Verification Flow
+1. **User Save**: The user adjusts values in the settings panel and clicks `Write Settings`.
+2. **Encode Payload**: The application constructs a new raw byte array replacing modified settings fields while keeping untouched bytes intact.
+3. **Write EEPROM**: The worker executes chunked 4-way memory writes to the ESC EEPROM space.
+4. **Re-Read Verification**: The worker automatically performs a follow-up read of the written EEPROM block and compares it byte-for-byte to ensure transaction success.
+5. **Complete Event**: Emits `EventSettingsWritten` (with verification status) to clear busy states and notify the user.
+
+#### Firmware Flashing Flow
+1. **Acquire Binary**: The user selects a local `.hex`/`.bin` file or chooses a release from the downloaded catalog.
+2. **Target Validation**: The worker verifies that the firmware layout and MCU architecture match the active ESC signature.
+3. **Flashing Loop**:
+   - **Erase**: Sends the erase page commands for target memory addresses.
+   - **Write Blocks**: Splits the binary into chunks, sending them via 4-way write commands, raising `EventProgress` for the progress bar.
+   - **Verify**: Reads back the flashed regions and compares their checksums.
+4. **Reboot**: Exits passthrough mode, returning the ESC and Flight Controller to normal operational states.
+
+---
+
+### Detailed Protocol & EEPROM Layout Specifications
+
+#### 1. MSP (MultiWii Serial Protocol)
+MSP is used to communicate with the Flight Controller (FC) when in normal operational mode.
+
+* **Discovery & Identity**: Probes FC status, board info, API version, and motor telemetry counts.
+* **Passthrough Handover**: Enters 1-wire/half-duplex ESC programming mode using `MSP_SET_PASSTHROUGH` (command `245`), providing the motor index.
+  * Standard Betaflight (`BTFL` variant) expects mode byte `0xFF` (`MSP_PASSTHROUGH_ESC_4WAY`), so the payload sent is `[0xFF, motor_index]`.
+  * Custom Pico/Tang offloader firmware expects mode byte `0x00` (`SerialEsc`), so the payload sent is `[0x00, motor_index]`.
+* **Motor Control**: Sends `MSP_SET_MOTOR` (command `214`) to drive individual DShot channels.
+
+##### MSP v1 Frame Format
+MSP v1 packets are structured as follows:
+* **Header (3 bytes)**: `$`, `M`, `<` (indicating Host -> FC) or `$` `M` `>` (FC -> Host)
+* **Payload Size (1 byte)**: Length of the payload in bytes ($N$)
+* **Command ID (1 byte)**: Command ID identifying the request or reply type
+* **Payload ($N$ bytes)**: Raw command/response data
+* **Checksum (1 byte)**: XOR checksum calculated over the `Payload Size` byte, the `Command ID` byte, and all `Payload` bytes:
+  $$\text{Checksum} = \text{Size} \oplus \text{Cmd} \oplus \text{Payload}[0] \oplus \dots \oplus \text{Payload}[N-1]$$
+
+##### MSP v2 Frame Format
+MSP v2 packets extend the payload capacity and command space:
+* **Header (3 bytes)**: `$`, `X`, `<` (Host -> FC) or `$` `X` `>` (FC -> Host)
+* **Flag (1 byte)**: Control flags (typically `0x00`)
+* **Command ID (2 bytes)**: 16-bit little-endian command identifier
+* **Payload Size (2 bytes)**: 16-bit little-endian payload length ($N$)
+* **Payload ($N$ bytes)**: Raw data bytes
+* **Checksum (1 byte)**: CRC8 checksum (DVB-S2 CRC8, polynomial `0x07` initialized to `0x00`) calculated sequentially over all bytes from the `Flag` byte through the last `Payload` byte (excluding the header).
+
+---
+
+#### 2. BLHeli 4-Way Protocol
+Once the FC enters passthrough mode, the serial connection switches to the half-duplex BLHeli 4-way bootloader protocol. 
+
+##### Host -> Device Frame (PC to Interface)
+* **byte 0 (Sync)**: Constant `0x2F` (PC synchronization marker)
+* **byte 1 (Command)**: Command ID code (1 byte)
+* **bytes 2..3 (Address)**: 16-bit big-endian target memory address
+* **byte 4 (Length)**: Param count (1 byte). `0x00` represents a length of `256` bytes.
+* **bytes 5.. (Payload)**: $N$ payload bytes (where $N = \text{Length}$)
+* **last 2 bytes (Checksum)**: 16-bit big-endian CRC16-XMODEM (polynomial `0x1021`) calculated over the message starting from `byte 1` through the last `Payload` byte (excludes leading sync marker and checksum itself).
+
+##### Device -> Host Frame (Interface to PC)
+* **byte 0 (Sync)**: Constant `0x2E` (Interface synchronization marker)
+* **byte 1 (Cmd Echo)**: The echoed Command ID code (1 byte)
+* **bytes 2..3 (Address)**: 16-bit big-endian response memory address
+* **byte 4 (Length)**: Response param count (1 byte). `0x00` represents a length of `256` bytes.
+* **bytes 5..5+Length-1 (Payload)**: $N$ payload bytes
+* **byte 5+Length (ACK)**: Response status ACK code (1 byte)
+* **last 2 bytes (Checksum)**: 16-bit big-endian CRC16-XMODEM calculated over the message starting from `byte 1` through the `ACK` byte (excludes leading sync marker and checksum itself).
+
+##### ACK Status Codes
+* **`0x00`**: `ACK_OK` — Transaction succeeded.
+* **`0x02`**: `ACK_I_INVALID_CMD` — Command not supported/invalid (e.g., trying EEPROM read on Silabs).
+* **`0x03`**: `ACK_I_INVALID_CRC` — CRC verification failed.
+* **`0x04`**: `ACK_I_VERIFY_ERROR` — Flash verification check failed.
+* **`0x08`**: `ACK_I_INVALID_CHANNEL` — Invalid channel requested.
+* **`0x09`**: `ACK_I_INVALID_PARAM` — Invalid parameter requested.
+* **`0x0F`**: `ACK_D_GENERAL_ERROR` — Device (ESC MCU) returned a general error.
+
+##### Core Command IDs
+* **`0x30`**: `cmd_InterfaceTestAlive` — Ping/Keepalive test interface.
+* **`0x34`**: `cmd_InterfaceExit` — Close passthrough, reset pins.
+* **`0x35`**: `cmd_DeviceReset` — Hard reset the ESC microcontroller.
+* **`0x37`**: `cmd_DeviceInitFlash` — Initialize flash programming mode on ESC.
+* **`0x39`**: `cmd_DevicePageErase` — Erase selected flash page.
+* **`0x3A`**: `cmd_DeviceRead` — Read chunk from flash memory.
+* **`0x3B`**: `cmd_DeviceWrite` — Write chunk to flash memory.
+* **`0x3D`**: `cmd_DeviceReadEEprom` — Read settings block from EEPROM.
+* **`0x3E`**: `cmd_DeviceWriteEEprom` — Write settings block to EEPROM.
+
+##### Crucial Timing Parameters (Parity Baselines)
+To ensure reliable half-duplex arbitration, the worker thread enforces the following timings derived from the reference codebase:
+* **Command Timeout**: `1000 ms` before considering a serial command timed out.
+* **Maximum Command Retries**: `10` retries for 4-way commands.
+* **Retry Spacing**: `250 ms` delay between consecutive command retry attempts.
+* **Keepalive Interval**: Send a `cmd_InterfaceTestAlive` (`0x30`) frame every `800 ms` if no active commands have been sent for `> 900 ms` (prevents target bootloader auto-timeout).
+* **Boot Stabilization Delay**: A mandatory `1200 ms` sleep is enforced immediately after initiating passthrough before attempting the first 4-way handshake, allowing the ESC bootloader to stabilize.
+
+##### Silabs / Bluejay Programming Mode Initialization & Settings Memory Map
+* **ESC Microcontroller Handshake**: To communicate with a Silabs-based ESC (BLHeli_S/Bluejay), the host must first execute the `cmd_DeviceInitFlash` (`0x37`) command to select the ESC and prepare the target microcontroller bootloader.
+  - Omitting `cmd_DeviceInitFlash` (`0x37`) before reading or writing settings causes subsequent commands to fail or time out.
+  - A successful `cmd_DeviceInitFlash` returns the target ESC signature (e.g., `B2 E8 63 01` for `imSIL_BLB` Silabs bootloader mode).
+* **Settings/EEPROM Memory Map**:
+  - The configuration EEPROM on Silabs/ARM ESCs does not reside at address `0x0000`. Reading or writing to `0x0000` on a real Betaflight Flight Controller will result in `INVALID_CMD` (ACK code `0x02` / `ACK_D_ERROR`) or timing out.
+  - The EEPROM offset is **MCU-dependent** and is resolved from the init_flash signature. The Python MCU descriptor table (`mcu_descriptors.py`) mirrors the JS reference (`webapp/esc-configurator/src/utils/Hardware/Silabs.js`, `Arm.js`):
+
+  | MCU Signature | MCU Name | `eeprom_offset` | `page_size` | Notes |
+  |---|---|---|---|---|
+  | `0xE8B1` | EFM8BB10x (Silabs) | `0x1A00` | 512 | BLHeli_S / Bluejay common |
+  | `0xE8B2` | EFM8BB21x (Silabs) | `0x1A00` | 512 | BLHeli_S / Bluejay most common |
+  | `0xE8B5` | EFM8BB51x (Silabs) | `0x3000` | 2048 | Newer Silabs MCU |
+  | `0x0000` | AM32 default (ARM) | `0x7C00` | 1024 | AM32 ARM ESCs |
+  | `0x1F32` | AT32F421 (ARM) | `0xF800` | 1024 | AT32 ARM variant |
+
+  - Read/Write Settings length boundaries:
+    - **BLHeli_S**: 48 bytes.
+    - **Bluejay**: 128 bytes.
+  - When `settings_rw_address` is `0` (default for BTFL), the worker auto-detects the correct address from the MCU descriptor table. Users can still override the address via the UI.
+* **Silabs Page Erase Before Settings Write** (REQUIRED):
+  - Silabs flash memory requires erasing the EEPROM page before writing new settings data. The JS reference (`FourWay.js:731`) sends `cmd_DevicePageErase` before `write`:
+    ```
+    erasePage(eepromOffset / pageSize * pageMultiplier)
+    write(eepromOffset, newSettingsArray)
+    ```
+  - `pageMultiplier` = `4` if `pageSize != 512`, else `1`.
+  - ARM ESCs do **not** require the erase step before settings writes.
+  - The Python configurator (`worker.py`, `async_worker.py`) now sends the page erase command before write for Silabs ESCs (interfaceMode `1`).
+* **Lock Byte Diagnostic Check** (Silabs EFM8 Only):
+  - For EFM8 Silabs MCUs, the lock byte at `lockbyte_address` should be `0xFF` (unlocked). If it is not, the ESC has code protection enabled and flash operations may be restricted.
+  - The Python configurator reads the lock byte after init_flash and logs a warning if the ESC is locked.
+* **Betaflight Protocol Constraints & JavaScript Reference**:
+  - In standard Betaflight controllers (`src/main/io/serial_4way.c`), `cmd_DeviceReadEEprom` (`0x3D`) and `cmd_DeviceWriteEEprom` (`0x3E`) are **not supported** for Silabs bootloader mode (`imSIL_BLB`). They return `ACK_I_INVALID_CMD` (`0x02`).
+  - This constraint is handled in the web configurator JS client (`webapp/esc-configurator/src/utils/FourWay.js` under `getInfo` and `writeSettings`), which branches settings read/write operations by MCU class:
+    - **Silabs ESCs** use `read` (`0x3A`) and `write` (`0x3B`) commands targeting the MCU-specific EEPROM offset.
+    - **ARM ESCs** use `read` (`0x3A`) and `write` (`0x3B`) commands targeting the MCU-specific EEPROM offset.
+    - **Atmel ESCs** use `readEEprom` (`0x3D`) and `writeEEprom` (`0x3E`). Crucially, for Atmel, `esc-configurator` loops through the settings array and **only writes the changed byte spans** (using `writeEEprom` at specific offsets), rather than writing the entire array.
+  - The Python configurator reads the `interfaceMode` byte from the `init_flash` response and dynamically uses `read`/`write` for Silabs (`1`) and ARM (`4`) ESCs, and `read_eeprom`/`write_eeprom` for Atmel (`2`) and SimonK (`3`).
+  - If the Flight Controller variant is `"BTFL"`, the settings address defaults to `0` (auto-detect from MCU descriptor).
+
+---
+
+#### 3. FCSP (Flight Controller Stream Protocol)
+A modern streaming-based multiplexed channel protocol used with Tang9K-class firmware.
+
+* **Capability Mapping**: Dynamically discovers available features, motor counts, DShot speeds, and device addressing maps.
+* **Direct Address Spaces**: Mapped blocks can be written or read directly via offset addressing:
+  - `ESC_EEPROM` (offset addressing mapping config memory)
+  - `FLASH` (firmware flashing sector access)
+  - `DSHOT_IO` / `PWM_IO` (real-time motor demand buffers)
+
+---
+
+#### 4. EEPROM & Settings Layouts and Conversions
+
+##### Conversion Rules
+The application translates raw binary EEPROM blocks into structured objects according to these size-based rules:
+* **1-Byte Fields (`size == 1`)**: Decoded as an unsigned 8-bit integer (`uint8`).
+* **2-Byte Fields (`size == 2`)**: Decoded as an unsigned 16-bit big-endian integer (`uint16`).
+* **String Fields (`size > 2` and not melody)**: Decoded as an ASCII string. Trailing spaces are automatically trimmed on read. On writeback, strings are padded with trailing spaces up to the field size.
+* **Melody Fields (`STARTUP_MELODY`)**: Kept as a raw byte array rather than converted to ASCII. Zero-padded to fill 128 bytes on writeback.
+
+##### BLHeli_S EEPROM Layout (Total Size: `0x70` / 112 bytes)
+| Offset | Size | Field Name | Type / Meaning |
+|---|---:|---|---|
+| `0x00` | 1 | `MAIN_REVISION` | Main software version |
+| `0x01` | 1 | `SUB_REVISION` | Sub-version revision |
+| `0x02` | 1 | `LAYOUT_REVISION` | Layout format index |
+| `0x0D` | 2 | `MODE` | Big-endian motor settings code |
+| `0x40` | 16 | `LAYOUT` | Target hardware layout name (string) |
+| `0x50` | 16 | `MCU` | Target MCU variant name (string) |
+| `0x60` | 16 | `NAME` | ESC identifying name (string) |
+
+##### Bluejay EEPROM Layout (Total Size: `0xFF` / 255 bytes)
+Bluejay extends the BLHeli-style layout header and appends startup melody regions:
+| Offset | Size | Field Name | Type / Meaning |
+|---|---:|---|---|
+| `0x00` | 1 | `MAIN_REVISION` | Main software version |
+| `0x01` | 1 | `SUB_REVISION` | Sub-version revision |
+| `0x02` | 1 | `LAYOUT_REVISION` | Layout format index |
+| `0x40` | 16 | `LAYOUT` | Target hardware layout name (string) |
+| `0x50` | 16 | `MCU` | Target MCU variant name (string) |
+| `0x60` | 16 | `NAME` | ESC identifying name (string) |
+| `0x70` | 128 | `STARTUP_MELODY` | Custom startup notes (raw byte array) |
+| `0xF0` | 2 | `STARTUP_MELODY_WAIT_MS`| Big-endian melody wait duration in ms |
+
+##### Settings Definitions, UI Options, and Rules
+Active fields decoded from the settings payload include:
+* **`MOTOR_DIRECTION`** (1-byte enum): Options: `Normal` (`0`), `Reverse` (`1`), `Bidirectional` (`2`), `Bidirectional Reverse` (`3`).
+* **`COMMUTATION_TIMING`** (1-byte enum): Options: `Low` (`0`), `MediumLow` (`1`), `Medium` (`2`), `MediumHigh` (`3`), `High` (`4`).
+* **`DEMAG_COMPENSATION`** (1-byte enum): Options: `Off` (`0`), `Low` (`1`), `High` (`2`).
+* **`BEEP_STRENGTH`** (1-byte integer): Volume strength, valid range `1..255`.
+* **`BEACON_STRENGTH`** (1-byte integer): Volume strength, valid range `1..255`.
+* **`BEACON_DELAY`** (1-byte enum): Options: `Off` (`0`), `1min` (`1`), `2min` (`2`), `5min` (`3`), `10min` (`4`).
+* **`BRAKE_ON_STOP`** (1-byte bool): Options: `Off` (`0`), `On` (`1`).
+* **`TEMPERATURE_PROTECTION`** (1-byte integer): Temp cut-off limit, valid range `0..140`°C.
+* **`PWM_FREQUENCY`** (1-byte enum): Options: `24kHz` (`0`), `48kHz` (`1`), `96kHz` (`2`), `Dynamic` (`3`).
+* **`STARTUP_POWER_MIN`** (1-byte integer, Bluejay only): Minimum startup power, valid range `1..150`.
+* **`STARTUP_POWER_MAX`** (1-byte integer, Bluejay only): Maximum startup power, valid range `1..150`.
+* **`BRAKING_STRENGTH`** (1-byte integer, Bluejay only): Active braking strength, valid range `0..250`.
+* **`POWER_RATING`** (1-byte integer, Bluejay only): Power factor rating, valid range `0..250`.
+* **`FORCE_EDT_ARM`** (1-byte bool, Bluejay only): Force Extended DShot Telemetry arm status.
+* **`THRESHOLD_96to48`** (1-byte integer, Bluejay only): Frequency threshold parameter, valid range `0..255`.
+* **`THRESHOLD_48to24`** (1-byte integer, Bluejay only): Frequency threshold parameter, valid range `0..255`.
+
+###### Visibility & Validation Rules
+* **3D Mode Gating**: Center throttle and neutral point fields are only visible and editable when `MOTOR_DIRECTION` is set to `Bidirectional` or `Bidirectional Reverse`.
+* **Dynamic PWM Gating**: The parameters `THRESHOLD_96to48` and `THRESHOLD_48to24` are only visible/active if `PWM_FREQUENCY` is set to `Dynamic`.
+* **Power & Frequency Threshold Sanitizing**: On save, `THRESHOLD_96to48` must be checked to ensure it is not less than `THRESHOLD_48to24`. If violated, the editor clamps them to equal values to prevent motor timing anomalies.
+
+---
+
+### Inter-thread communication
 Use message passing rather than ad-hoc shared mutable state.
 
 Required communication paths:
@@ -543,6 +788,16 @@ The app must support:
 - cancel behavior where protocol-safe
 - clear success/failure states
 - batch flashing support only when compatibility is established per selected ESC
+
+#### Firmware Flashing Protocol Constraints (`FourWay.js` Reference)
+* **Unsupported Interfaces**: The JS reference (`FourWay.js:1098`) hard-rejects firmware flashing for Atmel (`interfaceMode 2`) and SimonK (`interfaceMode 3`) ESCs, throwing an `UnknownInterfaceError`. The protocol only supports flashing Silabs (`1`) and ARM (`4`).
+* **Silabs Bootloader Brick-Protection Sequence**: For Silabs ESCs, flashing firmware requires a complex staging sequence to prevent bricking if power is lost mid-flash:
+  1. Erase EEPROM page and write `**FLASH*FAILED**` safeguard.
+  2. Write `LJMP bootloader` failsafe vector to early flash.
+  3. Erase, write, and verify the main firmware pages (`0x02` to `0x0D` for 512-byte pages).
+  4. Erase, write, and verify the bootloader pages (`0x00` to `0x02`), overwriting the failsafe.
+  5. Finally, write and verify the EEPROM settings page.
+  *(Note: The current Python configurator baseline uses a standard sequential flash loop and lacks this failsafe staging.)*
 
 ### 7. Firmware download from web requirements
 
