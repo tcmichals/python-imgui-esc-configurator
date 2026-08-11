@@ -15,6 +15,30 @@ from typing import Tuple, Union
 import struct
 import json
 
+from .asp_tlp import (
+    AspTlpPacket,
+    AspTransportDriver,
+    build_tlp64,
+    parse_tlp64,
+    REG_SYS_ID_REV,
+    REG_SYS_VENDOR_ID,
+    REG_SYS_SCRATCH,
+    REG_SYS_LED_CTRL,
+    REG_SYS_TIME_LOW,
+    REG_SYS_TIME_HIGH,
+    REG_MOTOR_CTRL,
+    REG_MOTOR_CH1,
+    REG_MOTOR_CH2,
+    REG_MOTOR_CH3,
+    REG_MOTOR_CH4,
+    REG_PWM_DEC_CTRL,
+    REG_PWM_DEC_CH1,
+    REG_PWM_DEC_CH2,
+    REG_PWM_DEC_CH3,
+    REG_PWM_DEC_CH4,
+    REG_NEO_CTRL,
+    REG_NEO_LED0,
+)
 from .tang9k_stream import (
     Tang9kChannel,
     Tang9kFrame,
